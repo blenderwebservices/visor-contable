@@ -7,16 +7,19 @@ use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Illuminate\Support\Str;
 
+use PhpOffice\PhpWord\IOFactory as PhpWordIOFactory;
+use PhpOffice\PhpSpreadsheet\IOFactory as PhpSpreadsheetIOFactory;
+
 class DocumentConverterService
 {
     public static function convertToPdf($filePath)
     {
         // $filePath is the relative path in the 'public' disk or 'local' disk
-        // We'll assume the files are in storage/app/public/documents
         $absolutePath = Storage::disk('public')->path($filePath);
         $directory = dirname($absolutePath);
         
         $fileName = pathinfo($absolutePath, PATHINFO_FILENAME);
+        $extension = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
         $pdfFileName = $fileName . '.pdf';
         $pdfAbsolutePath = $directory . '/' . $pdfFileName;
         
@@ -25,30 +28,34 @@ class DocumentConverterService
             return str_replace(Storage::disk('public')->path(''), '', $pdfAbsolutePath);
         }
 
-        // We assume libreoffice is installed and accessible via 'soffice' or 'libreoffice'
-        $binary = file_exists('/Applications/LibreOffice.app/Contents/MacOS/soffice') 
-            ? '/Applications/LibreOffice.app/Contents/MacOS/soffice' 
-            : 'libreoffice';
+        try {
+            if (in_array($extension, ['doc', 'docx', 'rtf', 'odt'])) {
+                // Setup DomPDF for PhpWord
+                \PhpOffice\PhpWord\Settings::setPdfRendererName(\PhpOffice\PhpWord\Settings::PDF_RENDERER_DOMPDF);
+                \PhpOffice\PhpWord\Settings::setPdfRendererPath(base_path('vendor/dompdf/dompdf'));
 
-        $process = new Process([
-            $binary,
-            '--headless',
-            '--convert-to',
-            'pdf',
-            '--outdir',
-            $directory,
-            $absolutePath
-        ]);
+                $phpWord = PhpWordIOFactory::load($absolutePath);
+                $pdfWriter = PhpWordIOFactory::createWriter($phpWord, 'PDF');
+                $pdfWriter->save($pdfAbsolutePath);
 
-        $process->setTimeout(60);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            // Log error or handle gracefully if LibreOffice is missing
-            \Log::error('LibreOffice conversion failed: ' . $process->getErrorOutput());
+            } elseif (in_array($extension, ['xls', 'xlsx', 'csv', 'ods'])) {
+                $spreadsheet = PhpSpreadsheetIOFactory::load($absolutePath);
+                
+                // PhpSpreadsheet supports Dompdf out of the box with the 'Dompdf' writer
+                $writer = PhpSpreadsheetIOFactory::createWriter($spreadsheet, 'Dompdf');
+                $writer->save($pdfAbsolutePath);
+            } else {
+                return null;
+            }
+        } catch (\Exception $e) {
+            \Log::error('PHP Conversion failed: ' . $e->getMessage());
             return null; // Conversion failed
         }
 
-        return str_replace(Storage::disk('public')->path(''), '', $pdfAbsolutePath);
+        if (file_exists($pdfAbsolutePath)) {
+            return str_replace(Storage::disk('public')->path(''), '', $pdfAbsolutePath);
+        }
+
+        return null;
     }
 }
