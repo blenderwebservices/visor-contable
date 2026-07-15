@@ -115,7 +115,11 @@
     <!-- Viewer -->
     <div class="w-full h-full p-2 pt-14 flex-1">
         @if($type === 'pdf')
-            <iframe src="{{ $url }}" class="w-full h-full rounded" frameborder="0"></iframe>
+            <object data="{{ $url }}" type="application/pdf" class="w-full h-full rounded">
+                <iframe src="{{ $url }}" class="w-full h-full rounded" frameborder="0">
+                    <p class="text-center mt-10">Tu navegador no puede mostrar este documento de forma integrada. <br> <a href="{{ $downloadUrl }}" class="text-primary-600 underline">Descárgalo aquí</a>.</p>
+                </iframe>
+            </object>
         @elseif($type === 'image')
             <img src="{{ $url }}" alt="Imagen" class="max-w-full max-h-full object-contain mx-auto rounded">
         @elseif($type === 'txt')

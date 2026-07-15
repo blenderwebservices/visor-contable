@@ -101,7 +101,7 @@ class FileExplorer extends Page
             ->closeModalByClickingAway(false)
             ->modalContent(function (array $arguments) {
                 $file = FileDocument::find($arguments['file']);
-                $url = '/storage/' . $file->file_path;
+                $url = route('documents.view', ['fileDocument' => $file->id]);
                 $type = $file->type;
                 
                 $originalUrl = '/storage/' . $file->file_path;
@@ -115,7 +115,7 @@ class FileExplorer extends Page
                 if (in_array($file->type, ['word', 'excel'])) {
                     $pdfPath = DocumentConverterService::convertToPdf($file->file_path);
                     if ($pdfPath) {
-                        $url = '/storage/' . $pdfPath;
+                        // The route will serve the PDF version
                         $type = 'pdf'; // Render as PDF now
                     } else {
                         return view('filament.app.components.file-error');

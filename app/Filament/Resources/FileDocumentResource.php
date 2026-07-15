@@ -50,6 +50,19 @@ class FileDocumentResource extends Resource
                     ->required(),
                 Forms\Components\Select::make('folder_id')
                     ->relationship('folder', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->createOptionForm([
+                        Forms\Components\TextInput::make('name')
+                            ->required()
+                            ->maxLength(255),
+                        Forms\Components\Select::make('parent_id')
+                            ->relationship('parent', 'name') // The relationship on Folder model is 'parent'
+                            ->label('Parent Folder')
+                            ->searchable()
+                            ->preload()
+                            ->default(null),
+                    ])
                     ->required(),
                 Forms\Components\Toggle::make('is_downloadable')
                     ->label('Permitir descarga')
