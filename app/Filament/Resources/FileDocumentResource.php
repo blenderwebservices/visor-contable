@@ -23,14 +23,21 @@ class FileDocumentResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
                 Forms\Components\FileUpload::make('file_path')
                     ->required()
                     ->directory('documents')
                     ->maxSize(51200) // 50MB
-                    ->columnSpanFull(),
+                    ->columnSpanFull()
+                    ->live()
+                    ->afterStateUpdated(function (Forms\Set $set, $state) {
+                        if ($state instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                            $filename = pathinfo($state->getClientOriginalName(), PATHINFO_FILENAME);
+                            $set('name', \Illuminate\Support\Str::slug($filename, '-'));
+                        }
+                    }),
+                Forms\Components\TextInput::make('name')
+                    ->required()
+                    ->maxLength(255),
                 Forms\Components\Select::make('type')
                     ->options([
                         'pdf' => 'PDF',
