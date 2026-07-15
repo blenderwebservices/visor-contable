@@ -21,7 +21,7 @@
     @if($this->viewMode === 'cards')
         <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <!-- Carpetas -->
-            @foreach($this->folders as $folder)
+            @foreach($this->getFolders() as $folder)
                 <div wire:click="openFolder({{ $folder->id }})" class="cursor-pointer bg-white dark:bg-gray-800 p-4 rounded-xl shadow border border-gray-200 dark:border-gray-700 hover:shadow-lg transition flex items-center space-x-4">
                     <x-heroicon-s-folder class="w-10 h-10 text-primary-500" />
                     <div>
@@ -32,7 +32,7 @@
             @endforeach
 
             <!-- Archivos -->
-            @foreach($this->files as $file)
+            @foreach($this->getFiles() as $file)
                 <div class="cursor-pointer bg-white dark:bg-gray-800 p-4 rounded-xl shadow border border-gray-200 dark:border-gray-700 hover:shadow-lg transition flex flex-col">
                     <div class="flex items-center space-x-4 mb-4">
                         @if($file->type === 'pdf')
@@ -73,7 +73,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($this->folders as $folder)
+                    @foreach($this->getFolders() as $folder)
                         <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer" wire:click="openFolder({{ $folder->id }})">
                             <td class="px-6 py-4 font-medium text-gray-900 dark:text-white flex items-center space-x-2">
                                 <x-heroicon-s-folder class="w-5 h-5 text-primary-500" />
@@ -83,7 +83,7 @@
                             <td class="px-6 py-4"></td>
                         </tr>
                     @endforeach
-                    @foreach($this->files as $file)
+                    @foreach($this->getFiles() as $file)
                         <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                             <td class="px-6 py-4 font-medium text-gray-900 dark:text-white flex items-center space-x-2">
                                 <x-heroicon-s-document class="w-5 h-5 text-gray-500" />
@@ -101,7 +101,7 @@
         </div>
     @endif
     
-    @if(count($this->folders) === 0 && count($this->files) === 0)
+    @if(count($this->getFolders()) === 0 && count($this->getFiles()) === 0)
         <div class="text-center py-12 text-gray-500 dark:text-gray-400">
             <x-heroicon-o-folder-open class="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <p class="text-lg">{{ __('Esta carpeta está vacía.') }}</p>

@@ -47,12 +47,12 @@ class FileExplorer extends Page
         $this->viewMode = $this->viewMode === 'cards' ? 'list' : 'cards';
     }
 
-    public function getFoldersProperty()
+    public function getFolders()
     {
         $user = Auth::user();
         $cacheKey = "user_{$user->id}_folders_parent_" . ($this->currentFolderId ?? 'root');
         
-        return \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(15), function () use ($user) {
+        $folderIds = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(15), function () use ($user) {
             $foldersQuery = Folder::where(function (Builder $query) use ($user) {
                 $query->whereHas('users', function ($q) use ($user) {
                     $q->where('users.id', $user->id);
@@ -64,14 +64,16 @@ class FileExplorer extends Page
             });
 
             if ($this->currentFolderId) {
-                return $foldersQuery->where('parent_id', $this->currentFolderId)->get();
+                return $foldersQuery->where('parent_id', $this->currentFolderId)->pluck('id')->toArray();
             }
 
-            return $foldersQuery->whereNull('parent_id')->get();
+            return $foldersQuery->whereNull('parent_id')->pluck('id')->toArray();
         });
+
+        return Folder::whereIn('id', $folderIds)->get();
     }
 
-    public function getFilesProperty()
+    public function getFiles()
     {
         if (!$this->currentFolderId) {
             return collect();
@@ -79,9 +81,11 @@ class FileExplorer extends Page
 
         $cacheKey = "folder_{$this->currentFolderId}_files";
         
-        return \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(15), function () {
-            return FileDocument::where('folder_id', $this->currentFolderId)->get();
+        $fileIds = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(15), function () {
+            return FileDocument::where('folder_id', $this->currentFolderId)->pluck('id')->toArray();
         });
+
+        return FileDocument::whereIn('id', $fileIds)->get();
     }
     
     public function getCurrentFolderProperty()
@@ -97,13 +101,13 @@ class FileExplorer extends Page
             ->modalCancelAction(false)
             ->modalContent(function (array $arguments) {
                 $file = FileDocument::find($arguments['file']);
-                $url = Storage::disk('public')->url($file->file_path);
+                $url = '/storage/' . $file->file_path;
                 $type = $file->type;
                 
                 if (in_array($file->type, ['word', 'excel'])) {
                     $pdfPath = DocumentConverterService::convertToPdf($file->file_path);
                     if ($pdfPath) {
-                        $url = Storage::disk('public')->url($pdfPath);
+                        $url = '/storage/' . $pdfPath;
                         $type = 'pdf'; // Render as PDF now
                     } else {
                         return view('filament.app.components.file-error');
