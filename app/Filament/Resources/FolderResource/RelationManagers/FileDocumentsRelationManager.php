@@ -21,6 +21,28 @@ class FileDocumentsRelationManager extends RelationManager
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),
+                Forms\Components\FileUpload::make('file_path')
+                    ->required()
+                    ->directory('documents')
+                    ->maxSize(51200) // 50MB
+                    ->columnSpanFull(),
+                Forms\Components\Select::make('type')
+                    ->options([
+                        'pdf' => 'PDF',
+                        'word' => 'Word',
+                        'excel' => 'Excel',
+                        'image' => 'Image',
+                        'txt' => 'Text',
+                        'other' => 'Other',
+                    ])
+                    ->required(),
+                Forms\Components\Toggle::make('is_downloadable')
+                    ->label('Permitir descarga')
+                    ->default(false),
+                Forms\Components\KeyValue::make('attributes')
+                    ->keyLabel('Attribute Name')
+                    ->valueLabel('Attribute Value')
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -29,16 +51,23 @@ class FileDocumentsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('name')
             ->columns([
-                Tables\Columns\TextColumn::make('name'),
+                Tables\Columns\TextColumn::make('name')->searchable(),
+                Tables\Columns\TextColumn::make('type')->searchable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 //
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make(),
+                Tables\Actions\AssociateAction::make(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DissociateAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

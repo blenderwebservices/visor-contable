@@ -44,6 +44,9 @@ class FileDocumentResource extends Resource
                 Forms\Components\Select::make('folder_id')
                     ->relationship('folder', 'name')
                     ->required(),
+                Forms\Components\Toggle::make('is_downloadable')
+                    ->label('Permitir descarga')
+                    ->default(false),
                 Forms\Components\KeyValue::make('attributes')
                     ->keyLabel('Attribute Name')
                     ->valueLabel('Attribute Value')

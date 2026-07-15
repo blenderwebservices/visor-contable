@@ -50,27 +50,32 @@ class FileExplorer extends Page
     public function getFolders()
     {
         $user = Auth::user();
-        $cacheKey = "user_{$user->id}_folders_parent_" . ($this->currentFolderId ?? 'root');
         
-        $folderIds = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(15), function () use ($user) {
-            $foldersQuery = Folder::where(function (Builder $query) use ($user) {
-                $query->whereHas('users', function ($q) use ($user) {
-                    $q->where('users.id', $user->id);
-                })->orWhereHas('groups', function ($q) use ($user) {
-                    $q->whereHas('users', function ($q2) use ($user) {
-                        $q2->where('users.id', $user->id);
-                    });
+        $accessibleFolderIds = Folder::where(function (Builder $query) use ($user) {
+            $query->whereHas('users', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            })->orWhereHas('groups', function ($q) use ($user) {
+                $q->whereHas('users', function ($q2) use ($user) {
+                    $q2->where('users.id', $user->id);
                 });
             });
+        })->pluck('id')->toArray();
 
-            if ($this->currentFolderId) {
-                return $foldersQuery->where('parent_id', $this->currentFolderId)->pluck('id')->toArray();
+        if ($this->currentFolderId) {
+            if (!in_array($this->currentFolderId, $accessibleFolderIds)) {
+                return collect();
             }
+            return Folder::whereIn('id', $accessibleFolderIds)
+                         ->where('parent_id', $this->currentFolderId)
+                         ->get();
+        }
 
-            return $foldersQuery->whereNull('parent_id')->pluck('id')->toArray();
-        });
-
-        return Folder::whereIn('id', $folderIds)->get();
+        return Folder::whereIn('id', $accessibleFolderIds)
+            ->where(function($q) use ($accessibleFolderIds) {
+                $q->whereNull('parent_id')
+                  ->orWhereNotIn('parent_id', $accessibleFolderIds);
+            })
+            ->get();
     }
 
     public function getFiles()
@@ -79,13 +84,7 @@ class FileExplorer extends Page
             return collect();
         }
 
-        $cacheKey = "folder_{$this->currentFolderId}_files";
-        
-        $fileIds = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(15), function () {
-            return FileDocument::where('folder_id', $this->currentFolderId)->pluck('id')->toArray();
-        });
-
-        return FileDocument::whereIn('id', $fileIds)->get();
+        return FileDocument::where('folder_id', $this->currentFolderId)->get();
     }
     
     public function getCurrentFolderProperty()
@@ -99,10 +98,19 @@ class FileExplorer extends Page
             ->modalHeading(fn (array $arguments) => FileDocument::find($arguments['file'])->name ?? 'Visor')
             ->modalSubmitAction(false)
             ->modalCancelAction(false)
+            ->closeModalByClickingAway(false)
             ->modalContent(function (array $arguments) {
                 $file = FileDocument::find($arguments['file']);
                 $url = '/storage/' . $file->file_path;
                 $type = $file->type;
+                
+                $originalUrl = '/storage/' . $file->file_path;
+                
+                $extension = pathinfo($file->file_path, PATHINFO_EXTENSION);
+                $downloadFileName = $file->name;
+                if ($extension && !str_ends_with(strtolower($downloadFileName), '.' . strtolower($extension))) {
+                    $downloadFileName .= '.' . $extension;
+                }
                 
                 if (in_array($file->type, ['word', 'excel'])) {
                     $pdfPath = DocumentConverterService::convertToPdf($file->file_path);
@@ -114,7 +122,13 @@ class FileExplorer extends Page
                     }
                 }
                 
-                return view('filament.app.components.file-viewer', ['url' => $url, 'type' => $type]);
+                return view('filament.app.components.file-viewer', [
+                    'url' => $url, 
+                    'type' => $type,
+                    'isDownloadable' => $file->is_downloadable,
+                    'downloadUrl' => $originalUrl,
+                    'fileName' => $downloadFileName,
+                ]);
             });
     }
 

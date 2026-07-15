@@ -26,8 +26,12 @@ class DocumentConverterService
         }
 
         // We assume libreoffice is installed and accessible via 'soffice' or 'libreoffice'
+        $binary = file_exists('/Applications/LibreOffice.app/Contents/MacOS/soffice') 
+            ? '/Applications/LibreOffice.app/Contents/MacOS/soffice' 
+            : 'libreoffice';
+
         $process = new Process([
-            'libreoffice',
+            $binary,
             '--headless',
             '--convert-to',
             'pdf',

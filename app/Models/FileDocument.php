@@ -13,6 +13,7 @@ class FileDocument extends Model
         'name',
         'file_path',
         'type',
+        'is_downloadable',
         'folder_id',
         'attributes',
     ];
@@ -21,6 +22,7 @@ class FileDocument extends Model
     {
         return [
             'attributes' => 'array',
+            'is_downloadable' => 'boolean',
         ];
     }
 
