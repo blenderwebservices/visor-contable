@@ -65,7 +65,10 @@ class FileDocumentResource extends Resource
                     ])
                     ->required(),
                 Forms\Components\Toggle::make('is_downloadable')
-                    ->label('Permitir descarga')
+                    ->label('Descargable')
+                    ->default(false),
+                Forms\Components\Toggle::make('is_printable')
+                    ->label('Imprimible')
                     ->default(false),
                 Forms\Components\KeyValue::make('attributes')
                     ->keyLabel('Attribute Name')

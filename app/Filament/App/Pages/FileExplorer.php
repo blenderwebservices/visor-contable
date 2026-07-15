@@ -126,6 +126,7 @@ class FileExplorer extends Page
                     'url' => $url, 
                     'type' => $type,
                     'isDownloadable' => $file->is_downloadable,
+                    'isPrintable' => $file->is_printable,
                     'downloadUrl' => $originalUrl,
                     'fileName' => $downloadFileName,
                 ]);
