@@ -53,6 +53,7 @@ class DocumentConverterService
         }
 
         if (file_exists($pdfAbsolutePath)) {
+            chmod($pdfAbsolutePath, 0644);
             return str_replace(Storage::disk('public')->path(''), '', $pdfAbsolutePath);
         }
 
