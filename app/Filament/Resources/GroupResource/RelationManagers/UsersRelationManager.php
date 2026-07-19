@@ -36,7 +36,13 @@ class UsersRelationManager extends RelationManager
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make(),
-                Tables\Actions\AttachAction::make(),
+                Tables\Actions\AttachAction::make()
+                    ->preloadRecordSelect()
+                    ->recordSelectOptionsQuery(fn (Builder $query) => $query->with('groups'))
+                    ->recordSelect(
+                        fn (Forms\Components\Select $select) => $select
+                            ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->name} - " . ($record->groups->first()?->name ?? 'Sin Grupo'))
+                    ),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

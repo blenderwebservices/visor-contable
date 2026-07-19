@@ -27,6 +27,21 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->userMenuItems([
+                \Filament\Navigation\MenuItem::make()
+                    ->label('Ir al Frontend')
+                    ->url(fn (): string => url('/'))
+                    ->icon('heroicon-o-globe-alt'),
+            ])
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE,
+                fn (): string => \Illuminate\Support\Facades\Blade::render('
+                    <div style="text-align: center; margin-bottom: 1rem;">
+                        <a href="{{ url(\'/\') }}" style="color: #d97706; text-decoration: underline; font-size: 0.875rem;">&larr; Volver al Frontend</a>
+                    </div>
+                    <div style="text-align: center; font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem; color: #d97706;">Acceso a Panel de Administración</div>
+                ')
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])
