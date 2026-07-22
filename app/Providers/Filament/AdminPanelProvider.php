@@ -25,7 +25,7 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('admin')
-            ->path('admin')
+            ->path('portal')
             ->login()
             ->userMenuItems([
                 \Filament\Navigation\MenuItem::make()
@@ -39,7 +39,7 @@ class AdminPanelProvider extends PanelProvider
                     <div style="text-align: center; margin-bottom: 1rem;">
                         <a href="{{ url(\'/\') }}" style="color: #d97706; text-decoration: underline; font-size: 0.875rem;">&larr; Volver al Frontend</a>
                     </div>
-                    <div style="text-align: center; font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem; color: #d97706;">Acceso a Panel de Administración</div>
+                    <div style="text-align: center; font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem; color: #d97706;">Acceso a Portal de Documentos</div>
                 ')
             )
             ->colors([
