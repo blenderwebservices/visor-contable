@@ -88,4 +88,23 @@ class FolderResource extends Resource
             'edit' => Pages\EditFolder::route('/{record}/edit'),
         ];
     }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        
+        if (auth()->check() && auth()->user()->role === 'reader') {
+            $query->where(function ($q) {
+                $q->whereHas('users', function ($q2) {
+                    $q2->where('users.id', auth()->id());
+                })->orWhereHas('groups', function ($q2) {
+                    $q2->whereHas('users', function ($q3) {
+                        $q3->where('users.id', auth()->id());
+                    });
+                });
+            });
+        }
+        
+        return $query;
+    }
 }

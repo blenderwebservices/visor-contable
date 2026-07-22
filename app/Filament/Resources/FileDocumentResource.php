@@ -132,4 +132,25 @@ class FileDocumentResource extends Resource
             'edit' => Pages\EditFileDocument::route('/{record}/edit'),
         ];
     }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        
+        if (auth()->check() && auth()->user()->role === 'reader') {
+            $query->whereHas('folder', function ($q) {
+                $q->where(function ($q2) {
+                    $q2->whereHas('users', function ($q3) {
+                        $q3->where('users.id', auth()->id());
+                    })->orWhereHas('groups', function ($q3) {
+                        $q3->whereHas('users', function ($q4) {
+                            $q4->where('users.id', auth()->id());
+                        });
+                    });
+                });
+            });
+        }
+        
+        return $query;
+    }
 }
