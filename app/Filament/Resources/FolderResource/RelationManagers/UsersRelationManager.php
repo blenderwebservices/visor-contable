@@ -30,7 +30,7 @@ class UsersRelationManager extends RelationManager
                     ->maxLength(255),
                 Forms\Components\TextInput::make('password')
                     ->password()
-                    ->required(fn ($livewire) => $livewire instanceof \Filament\Resources\RelationManagers\RelationManager && $livewire->mountedTableAction === 'create')
+                    ->required(fn (string $operation): bool => $operation === 'create')
                     ->dehydrated(fn ($state) => filled($state))
                     ->maxLength(255),
                 Forms\Components\Select::make('role')
