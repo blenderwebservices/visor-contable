@@ -2,13 +2,13 @@
 
 namespace App\Filament\App\Pages;
 
+use App\Models\Group;
 use App\Models\Folder;
 use App\Models\FileDocument;
 use App\Models\Annotation;
 use App\Services\DocumentConverterService;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
@@ -21,12 +21,20 @@ class FileExplorer extends Page
 
     protected static string $view = 'filament.app.pages.file-explorer';
 
+    public ?int $currentGroupId = null;
     public ?int $currentFolderId = null;
     public string $viewMode = 'cards'; // cards or list
 
     public function mount()
     {
+        $this->currentGroupId = request()->query('group');
         $this->currentFolderId = request()->query('folder');
+    }
+
+    public function openGroup($groupId)
+    {
+        $this->currentGroupId = $groupId;
+        $this->currentFolderId = null;
     }
 
     public function openFolder($folderId)
@@ -38,8 +46,20 @@ class FileExplorer extends Page
     {
         if ($this->currentFolderId) {
             $folder = Folder::find($this->currentFolderId);
-            $this->currentFolderId = $folder?->parent_id;
+            if ($folder && $folder->parent_id) {
+                $this->currentFolderId = $folder->parent_id;
+            } else {
+                $this->currentFolderId = null;
+            }
+        } elseif ($this->currentGroupId) {
+            $this->currentGroupId = null;
         }
+    }
+    
+    public function goToPath($groupId = null, $folderId = null)
+    {
+        $this->currentGroupId = $groupId;
+        $this->currentFolderId = $folderId;
     }
 
     public function toggleViewMode()
@@ -47,35 +67,50 @@ class FileExplorer extends Page
         $this->viewMode = $this->viewMode === 'cards' ? 'list' : 'cards';
     }
 
+    public function getGroups()
+    {
+        if ($this->currentGroupId || $this->currentFolderId) {
+            return collect();
+        }
+
+        $user = Auth::user();
+        if ($user->role === 'admin' || $user->role === 'supervisor') {
+            return Group::all();
+        }
+
+        return $user->groups;
+    }
+
     public function getFolders()
     {
         $user = Auth::user();
+
+        $query = Folder::query();
         
-        $accessibleFolderIds = Folder::where(function (Builder $query) use ($user) {
-            $query->whereHas('users', function ($q) use ($user) {
-                $q->where('users.id', $user->id);
-            })->orWhereHas('groups', function ($q) use ($user) {
+        if ($user->role === 'reader') {
+            $query->where(function ($q) use ($user) {
                 $q->whereHas('users', function ($q2) use ($user) {
                     $q2->where('users.id', $user->id);
+                })->orWhereHas('groups', function ($q2) use ($user) {
+                    $q2->whereHas('users', function ($q3) use ($user) {
+                        $q3->where('users.id', $user->id);
+                    });
                 });
             });
-        })->pluck('id')->toArray();
-
-        if ($this->currentFolderId) {
-            if (!in_array($this->currentFolderId, $accessibleFolderIds)) {
-                return collect();
-            }
-            return Folder::whereIn('id', $accessibleFolderIds)
-                         ->where('parent_id', $this->currentFolderId)
-                         ->get();
         }
 
-        return Folder::whereIn('id', $accessibleFolderIds)
-            ->where(function($q) use ($accessibleFolderIds) {
-                $q->whereNull('parent_id')
-                  ->orWhereNotIn('parent_id', $accessibleFolderIds);
-            })
-            ->get();
+        if ($this->currentFolderId) {
+            return (clone $query)->where('parent_id', $this->currentFolderId)->get();
+        } elseif ($this->currentGroupId) {
+            // Folders associated with the current group that don't have a parent
+            return (clone $query)->whereNull('parent_id')
+                ->whereHas('groups', function ($q) {
+                    $q->where('groups.id', $this->currentGroupId);
+                })
+                ->get();
+        }
+
+        return collect();
     }
 
     public function getFiles()
@@ -85,6 +120,35 @@ class FileExplorer extends Page
         }
 
         return FileDocument::where('folder_id', $this->currentFolderId)->get();
+    }
+
+    public function getBreadcrumbsArrayProperty()
+    {
+        $crumbs = [];
+        
+        if ($this->currentGroupId) {
+            $group = Group::find($this->currentGroupId);
+            if ($group) {
+                $crumbs[] = ['label' => $group->name, 'groupId' => $group->id, 'folderId' => null];
+            }
+        }
+
+        if ($this->currentFolderId) {
+            $folder = Folder::find($this->currentFolderId);
+            $folderPath = [];
+            while ($folder) {
+                array_unshift($folderPath, ['label' => $folder->name, 'groupId' => $this->currentGroupId, 'folderId' => $folder->id]);
+                $folder = $folder->parent;
+            }
+            $crumbs = array_merge($crumbs, $folderPath);
+        }
+        
+        return $crumbs;
+    }
+
+    public function getCurrentGroupProperty()
+    {
+        return Group::find($this->currentGroupId);
     }
     
     public function getCurrentFolderProperty()
@@ -115,8 +179,7 @@ class FileExplorer extends Page
                 if (in_array($file->type, ['word', 'excel'])) {
                     $pdfPath = DocumentConverterService::convertToPdf($file->file_path);
                     if ($pdfPath) {
-                        // The route will serve the PDF version
-                        $type = 'pdf'; // Render as PDF now
+                        $type = 'pdf';
                     } else {
                         return view('filament.app.components.file-error');
                     }
