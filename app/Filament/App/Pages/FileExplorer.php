@@ -102,15 +102,16 @@ class FileExplorer extends Page
         if ($this->currentFolderId) {
             return (clone $query)->where('parent_id', $this->currentFolderId)->get();
         } elseif ($this->currentGroupId) {
-            // Folders associated with the current group that don't have a parent
-            return (clone $query)->whereNull('parent_id')
+            // Folders explicitly associated with the current group
+            return (clone $query)
                 ->whereHas('groups', function ($q) {
                     $q->where('groups.id', $this->currentGroupId);
                 })
                 ->get();
         }
 
-        return collect();
+        // Return all root-level folders accessible to the user
+        return (clone $query)->whereNull('parent_id')->get();
     }
 
     public function getFiles()
