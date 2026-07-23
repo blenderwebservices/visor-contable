@@ -110,8 +110,8 @@ class FileExplorer extends Page
                 ->get();
         }
 
-        // Return all root-level folders accessible to the user
-        return (clone $query)->whereNull('parent_id')->get();
+        // Return all root-level folders accessible to the user that do not belong to any group
+        return (clone $query)->whereNull('parent_id')->doesntHave('groups')->get();
     }
 
     public function getFiles()
