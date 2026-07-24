@@ -32,7 +32,12 @@ class FolderResource extends Resource
                     ->required()
                     ->maxLength(255),
                 Forms\Components\Select::make('parent_id')
-                    ->relationship('parent', 'name')
+                    ->relationship('parent', 'name', modifyQueryUsing: function (\Illuminate\Database\Eloquent\Builder $query, ?Folder $record) {
+                        if ($record) {
+                            $query->where('id', '!=', $record->id);
+                        }
+                        return $query;
+                    })
                     ->label('Parent Folder')
                     ->searchable()
                     ->preload()
