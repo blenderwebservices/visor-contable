@@ -69,4 +69,14 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasMany(Annotation::class);
     }
+
+    public function announcements()
+    {
+        return $this->belongsToMany(Announcement::class);
+    }
+
+    public function hiddenAnnouncements()
+    {
+        return $this->belongsToMany(Announcement::class, 'announcement_user_hidden');
+    }
 }

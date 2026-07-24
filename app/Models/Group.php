@@ -20,4 +20,9 @@ class Group extends Model
     {
         return $this->belongsToMany(Folder::class);
     }
+
+    public function announcements()
+    {
+        return $this->belongsToMany(Announcement::class);
+    }
 }
