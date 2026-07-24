@@ -58,14 +58,14 @@
                     @endif
                 </div>
                 
-                @if($data['files']->isEmpty())
+                @if($data['files']->isEmpty() && (!$data['folder'] || $data['folder']->children()->count() === 0))
                     <div class="text-center py-6 bg-white dark:bg-gray-900 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
                         <p class="text-sm text-gray-400 dark:text-gray-500 flex flex-col items-center gap-2">
                             <x-heroicon-o-folder-open class="w-8 h-8 text-gray-300 dark:text-gray-600" />
                             Carpeta vacía
                         </p>
                     </div>
-                @else
+                @elseif($data['files']->isNotEmpty())
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                         @foreach($data['files'] as $file)
                             <div class="group flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded border border-gray-100 dark:border-gray-700 shadow-sm hover:border-primary-300 transition-colors">
