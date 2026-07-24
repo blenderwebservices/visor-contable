@@ -121,6 +121,44 @@ class FileDocumentResource extends Resource
                 return null;
             })
             ->actions([
+                Tables\Actions\Action::make('new_version')
+                    ->label('Subir Nueva Versión')
+                    ->icon('heroicon-o-arrow-up-tray')
+                    ->color('success')
+                    ->form([
+                        Forms\Components\FileUpload::make('new_file')
+                            ->label('Nuevo Archivo')
+                            ->required()
+                            ->directory('documents')
+                            ->maxSize(51200), // 50MB
+                        Forms\Components\Textarea::make('change_notes')
+                            ->label('Notas de cambio (Opcional)')
+                            ->placeholder('Describe qué cambió en esta versión...')
+                            ->maxLength(65535),
+                    ])
+                    ->action(function ($record, array $data) {
+                        $currentVersionNum = $record->current_version ?? 1;
+                        
+                        // Guarda el archivo actual en el historial
+                        $record->versions()->create([
+                            'version' => $currentVersionNum,
+                            'version_label' => 'v' . $currentVersionNum . ' - ' . now()->format('Y-m-d/His'),
+                            'file_path' => $record->file_path,
+                            'change_notes' => $data['change_notes'] ?? 'Sin descripción de cambios.',
+                            'created_by' => auth()->id(),
+                        ]);
+
+                        // Actualiza el registro con el nuevo archivo
+                        $record->update([
+                            'file_path' => $data['new_file'],
+                            'current_version' => $currentVersionNum + 1,
+                        ]);
+                        
+                        \Filament\Notifications\Notification::make()
+                            ->title('Nueva versión subida')
+                            ->success()
+                            ->send();
+                    }),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
@@ -135,7 +173,7 @@ class FileDocumentResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            RelationManagers\VersionsRelationManager::class,
         ];
     }
 

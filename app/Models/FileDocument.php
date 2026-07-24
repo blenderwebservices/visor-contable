@@ -17,6 +17,7 @@ class FileDocument extends Model
         'is_downloadable',
         'is_printable',
         'folder_id',
+        'current_version',
         'attributes',
     ];
 
@@ -37,5 +38,10 @@ class FileDocument extends Model
     public function annotations()
     {
         return $this->hasMany(Annotation::class);
+    }
+
+    public function versions()
+    {
+        return $this->hasMany(FileDocumentVersion::class);
     }
 }
