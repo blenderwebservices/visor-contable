@@ -29,7 +29,7 @@
             </div>
             
             <!-- Acciones -->
-            <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1 ml-2">
+            <div class="flex items-center space-x-1 ml-2">
                 <button wire:click="mountAction('viewFile', { file: {{ $record->getKey() }} })" class="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition" title="Ver archivo">
                     <x-heroicon-o-eye class="w-4 h-4" />
                 </button>

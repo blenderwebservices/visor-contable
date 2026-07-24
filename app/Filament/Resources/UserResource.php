@@ -80,6 +80,13 @@ class UserResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->groups([
+                Tables\Grouping\Group::make('group_id')
+                    ->label('Grupo (Empresa)')
+                    ->getTitleFromRecordUsing(fn ($record) => $record->groups->pluck('name')->join(', ') ?: 'Sin Grupo')
+                    ->orderQueryUsing(fn (\Illuminate\Database\Eloquent\Builder $query, string $direction) => $query),
+            ])
+            ->defaultGroup('group_id')
             ->filters([
                 //
             ])

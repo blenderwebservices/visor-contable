@@ -41,7 +41,7 @@
                                 <span class="text-xs font-medium text-gray-700 dark:text-gray-300 block truncate" title="{{ $file->name }}">{{ $file->name }}</span>
                             </div>
                             
-                            <div class="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1 flex-shrink-0 bg-white dark:bg-gray-900 pl-2">
+                            <div class="flex space-x-1 flex-shrink-0 bg-white dark:bg-gray-900 pl-2">
                                 <button wire:click="mountAction('viewFile', { file: {{ $file->id }} })" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-300" title="Ver archivo">
                                     <x-heroicon-o-eye class="w-4 h-4" />
                                 </button>
