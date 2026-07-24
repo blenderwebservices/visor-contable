@@ -104,11 +104,26 @@ class FileDocumentResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([
-                //
+            ->groups([
+                Tables\Grouping\Group::make('folder.name')
+                    ->label('Folder'),
+                Tables\Grouping\Group::make('folder_id')
+                    ->label('Grupo (Empresa)')
+                    ->getTitleFromRecordUsing(fn ($record) => $record->folder?->groups->pluck('name')->join(', ') ?: 'Sin Grupo'),
             ])
+            ->content(function (\Filament\Resources\Pages\ListRecords $livewire) {
+                if (property_exists($livewire, 'viewMode') && $livewire->viewMode === 'grid') {
+                    return view('filament.resources.file-document-resource.components.grid-view', ['records' => $livewire->getTableRecords()]);
+                }
+                if (property_exists($livewire, 'viewMode') && $livewire->viewMode === 'explorer') {
+                    return view('filament.resources.file-document-resource.components.explorer-view');
+                }
+                return null;
+            })
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

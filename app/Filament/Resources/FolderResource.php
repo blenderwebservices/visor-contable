@@ -61,8 +61,19 @@ class FolderResource extends Resource
             ->filters([
                 //
             ])
+            ->content(function (\Filament\Resources\Pages\ListRecords $livewire) {
+                if (property_exists($livewire, 'viewMode') && $livewire->viewMode === 'grid') {
+                    return view('filament.resources.folder-resource.components.grid-view', ['records' => $livewire->getTableRecords()]);
+                }
+                if (property_exists($livewire, 'viewMode') && $livewire->viewMode === 'explorer') {
+                    return view('filament.resources.folder-resource.components.explorer-view');
+                }
+                return null;
+            })
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
