@@ -51,6 +51,8 @@ class UserResource extends Resource
                     ])
                     ->required()
                     ->default('reader'),
+                Forms\Components\View::make('filament.resources.user-resource.components.folder-explorer')
+                    ->columnSpanFull(),
             ]);
     }
 

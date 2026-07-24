@@ -71,30 +71,31 @@
 
             <!-- Archivos -->
             @foreach($files as $file)
-                <div class="relative bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition flex flex-col h-44 group">
-                    <div class="flex-1 flex items-center justify-center mb-2">
-                        @if($file->type === 'pdf')
-                            <x-heroicon-s-document-text class="w-14 h-14 text-red-500" />
-                        @elseif(in_array($file->type, ['word', 'excel']))
-                            <x-heroicon-s-document class="w-14 h-14 text-blue-600" />
-                        @elseif($file->type === 'image')
-                            <x-heroicon-s-photo class="w-14 h-14 text-green-500" />
-                        @else
-                            <x-heroicon-s-document class="w-14 h-14 text-gray-400" />
-                        @endif
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition flex flex-col justify-between h-56">
+                    <div class="flex-1 flex flex-col items-center justify-center mb-2">
+                        <div class="w-16 h-16 flex items-center justify-center flex-shrink-0">
+                            @if($file->type === 'pdf')
+                                <x-heroicon-s-document-text class="w-full h-full text-red-500" />
+                            @elseif(in_array($file->type, ['word', 'excel']))
+                                <x-heroicon-s-document class="w-full h-full text-blue-600" />
+                            @elseif($file->type === 'image')
+                                <x-heroicon-s-photo class="w-full h-full text-green-500" />
+                            @else
+                                <x-heroicon-s-document class="w-full h-full text-gray-400" />
+                            @endif
+                        </div>
+                        <div class="text-center mt-3 w-full">
+                            <h3 class="font-medium text-sm text-gray-900 dark:text-white truncate w-full" title="{{ $file->name }}">{{ $file->name }}</h3>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase mt-1">{{ $file->type }}</p>
+                        </div>
                     </div>
                     
-                    <div class="text-center mt-auto">
-                        <h3 class="font-medium text-xs text-gray-900 dark:text-white truncate w-full" title="{{ $file->name }}">{{ $file->name }}</h3>
-                        <p class="text-[10px] text-gray-500 dark:text-gray-400 uppercase mt-0.5">{{ $file->type }}</p>
-                    </div>
-
-                    <!-- Overlay Acciones -->
-                    <div class="absolute inset-0 bg-white/90 dark:bg-gray-800/90 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center space-y-2 backdrop-blur-sm">
-                        <x-filament::button wire:click="mountAction('viewFile', { file: {{ $file->id }} })" size="sm" color="gray" icon="heroicon-o-eye" class="w-24 justify-center">
+                    <!-- Acciones Visibles -->
+                    <div class="flex items-center justify-center space-x-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                        <x-filament::button wire:click="mountAction('viewFile', { file: {{ $file->id }} })" size="sm" color="gray" icon="heroicon-o-eye" class="flex-1 justify-center">
                             {{ __('Ver') }}
                         </x-filament::button>
-                        <x-filament::button wire:click="mountAction('viewNotes', { file: {{ $file->id }} })" size="sm" color="primary" icon="heroicon-o-chat-bubble-left" class="w-24 justify-center">
+                        <x-filament::button wire:click="mountAction('viewNotes', { file: {{ $file->id }} })" size="sm" color="primary" icon="heroicon-o-chat-bubble-left" class="flex-1 justify-center">
                             {{ __('Notas') }}
                         </x-filament::button>
                     </div>
