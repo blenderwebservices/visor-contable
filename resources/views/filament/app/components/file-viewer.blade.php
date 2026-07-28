@@ -9,9 +9,15 @@
          totalPages: 0,
          pdfError: null,
          
+         getRoot() {
+             return this.$root || (this.$el ? (this.$el.hasAttribute('x-data') ? this.$el : this.$el.closest('[x-data]')) : null);
+         },
+         
          init() {
              this.$nextTick(() => {
-                 this.modal = this.$el.closest('.fi-modal-window');
+                 const root = this.getRoot();
+                 if (!root) return;
+                 this.modal = root.closest('.fi-modal-window');
                  if(this.modal) {
                      this.modal.style.resize = 'none'; 
                      this.modal.style.minWidth = '400px';
@@ -28,7 +34,7 @@
                          contentWrap.style.overflow = 'hidden';
                      }
                      
-                     let parent = this.$el.parentElement;
+                     let parent = root.parentElement;
                      while (parent && parent !== this.modal && !parent.classList.contains('fi-modal-window')) {
                          parent.style.flex = '1 1 auto';
                          parent.style.display = 'flex';
@@ -93,15 +99,17 @@
          
          loadDocument() {
              this.$nextTick(() => {
-                 this.$el._canvas = this.$el.querySelector('canvas');
-                 if(!this.$el._canvas) {
+                 const root = this.getRoot();
+                 if (!root) return;
+                 root._canvas = root.querySelector('canvas');
+                 if(!root._canvas) {
                      this.pdfError = 'Canvas element not found!';
                      return;
                  }
                  
                  pdfjsLib.getDocument(this.pdfUrl).promise.then(pdfDoc_ => {
-                     this.$el._pdfDoc = pdfDoc_;
-                     this.totalPages = this.$el._pdfDoc.numPages;
+                     root._pdfDoc = pdfDoc_;
+                     this.totalPages = root._pdfDoc.numPages;
                      this.renderPage(this.pageNum);
                  }).catch(err => {
                      console.error('Error loading PDF: ', err);
@@ -111,26 +119,27 @@
          },
          
          renderPage(num) {
-             if (!this.$el._pdfDoc || !this.$el._canvas) return;
+             const root = this.getRoot();
+             if (!root || !root._pdfDoc || !root._canvas) return;
              
-             if (this.$el._renderTask && typeof this.$el._renderTask.cancel === 'function') {
-                 try { this.$el._renderTask.cancel(); } catch(e) {}
+             if (root._renderTask && typeof root._renderTask.cancel === 'function') {
+                 try { root._renderTask.cancel(); } catch(e) {}
              }
              
              this.pageRendering = true;
-             this.$el._pdfDoc.getPage(num).then(page => {
+             root._pdfDoc.getPage(num).then(page => {
                  const viewport = page.getViewport({scale: this.scale});
-                 this.$el._canvas.height = viewport.height;
-                 this.$el._canvas.width = viewport.width;
+                 root._canvas.height = viewport.height;
+                 root._canvas.width = viewport.width;
                  
-                 const ctx = this.$el._canvas.getContext('2d');
+                 const ctx = root._canvas.getContext('2d');
                  const renderContext = {
                      canvasContext: ctx,
                      viewport: viewport
                  };
                  
-                 this.$el._renderTask = page.render(renderContext);
-                 this.$el._renderTask.promise.then(() => {
+                 root._renderTask = page.render(renderContext);
+                 root._renderTask.promise.then(() => {
                      this.pageRendering = false;
                      if (this.pageNumPending !== null) {
                          const nextNum = this.pageNumPending;
