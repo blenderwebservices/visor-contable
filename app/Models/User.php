@@ -25,6 +25,8 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'role',
+        'group_id',
+        'has_restricted_folders',
     ];
 
     /**
@@ -53,6 +55,37 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return true;
+    }
+
+    public function group()
+    {
+        return $this->belongsTo(Group::class);
+    }
+
+    public function supervisedGroups()
+    {
+        return $this->belongsToMany(Group::class, 'supervisor_group_assignments', 'supervisor_id', 'group_id');
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isSupervisor(): bool
+    {
+        return $this->role === 'supervisor';
+    }
+
+    public function isReader(): bool
+    {
+        return $this->role === 'reader';
+    }
+
+    public function allowedFolders()
+    {
+        return $this->belongsToMany(Folder::class, 'users_folders_shared', 'user_id', 'folder_id')
+                    ->withPivot('can_upload', 'can_download');
     }
 
     public function groups()

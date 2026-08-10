@@ -21,7 +21,7 @@ class FileDocumentResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->role === 'admin';
+        return auth()->check();
     }
 
     public static function form(Form $form): Form
@@ -188,22 +188,8 @@ class FileDocumentResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
-        
-        if (auth()->check() && auth()->user()->role === 'reader') {
-            $query->whereHas('folder', function ($q) {
-                $q->where(function ($q2) {
-                    $q2->whereHas('users', function ($q3) {
-                        $q3->where('users.id', auth()->id());
-                    })->orWhereHas('groups', function ($q3) {
-                        $q3->whereHas('users', function ($q4) {
-                            $q4->where('users.id', auth()->id());
-                        });
-                    });
-                });
-            });
-        }
-        
-        return $query;
+        return parent::getEloquentQuery()->whereHas('folder', function ($q) {
+            $q->forCurrentUser();
+        });
     }
 }

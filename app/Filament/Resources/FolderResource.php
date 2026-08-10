@@ -11,17 +11,19 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class FolderResource extends Resource
 {
     protected static ?string $model = Folder::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-folder';
+    protected static ?string $navigationLabel = 'Carpetas';
+    protected static ?string $modelLabel = 'Carpeta';
+    protected static ?string $pluralModelLabel = 'Carpetas';
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->role === 'admin';
+        return auth()->check();
     }
 
     public static function form(Form $form): Form
@@ -29,16 +31,23 @@ class FolderResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
+                    ->label('Nombre')
                     ->required()
                     ->maxLength(255),
+                Forms\Components\Select::make('group_id')
+                    ->relationship('group', 'name')
+                    ->label('Empresa')
+                    ->searchable()
+                    ->preload()
+                    ->required(fn () => !auth()->user()?->isReader()),
                 Forms\Components\Select::make('parent_id')
-                    ->relationship('parent', 'name', modifyQueryUsing: function (\Illuminate\Database\Eloquent\Builder $query, ?Folder $record) {
+                    ->relationship('parent', 'name', modifyQueryUsing: function (Builder $query, ?Folder $record) {
                         if ($record) {
                             $query->where('id', '!=', $record->id);
                         }
-                        return $query;
+                        return $query->forCurrentUser();
                     })
-                    ->label('Parent Folder')
+                    ->label('Carpeta Padre')
                     ->searchable()
                     ->preload()
                     ->default(null),
@@ -50,15 +59,22 @@ class FolderResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
+                    ->label('Nombre')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('group.name')
+                    ->label('Empresa')
+                    ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('parent.name')
-                    ->label('Parent Folder')
+                    ->label('Carpeta Padre')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
+                    ->label('Creado el')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('updated_at')
+                    ->label('Actualizado el')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -107,20 +123,6 @@ class FolderResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
-        
-        if (auth()->check() && auth()->user()->role === 'reader') {
-            $query->where(function ($q) {
-                $q->whereHas('users', function ($q2) {
-                    $q2->where('users.id', auth()->id());
-                })->orWhereHas('groups', function ($q2) {
-                    $q2->whereHas('users', function ($q3) {
-                        $q3->where('users.id', auth()->id());
-                    });
-                });
-            });
-        }
-        
-        return $query;
+        return parent::getEloquentQuery()->forCurrentUser();
     }
 }

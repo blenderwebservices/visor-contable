@@ -53,6 +53,15 @@ class UserResource extends Resource
                     ])
                     ->required()
                     ->default('reader'),
+                Forms\Components\Select::make('group_id')
+                    ->relationship('group', 'name')
+                    ->label('Empresa')
+                    ->searchable()
+                    ->preload()
+                    ->nullable(),
+                Forms\Components\Toggle::make('has_restricted_folders')
+                    ->label('Restringir carpetas específicas')
+                    ->default(false),
                 Forms\Components\View::make('filament.resources.user-resource.components.folder-explorer')
                     ->columnSpanFull(),
             ]);
