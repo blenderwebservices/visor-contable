@@ -15,10 +15,22 @@ class GroupResource extends Resource
 {
     protected static ?string $model = Group::class;
 
+    public static function getModelLabel(): string
+    {
+        return __('Company');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Companies');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Companies');
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
-    protected static ?string $navigationLabel = 'Empresas';
-    protected static ?string $modelLabel = 'Empresa';
-    protected static ?string $pluralModelLabel = 'Empresas';
 
     public static function canViewAny(): bool
     {
@@ -30,11 +42,11 @@ class GroupResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
-                    ->label('Nombre de la Empresa')
+                    ->label(__('Name'))
                     ->required()
                     ->maxLength(255),
                 Forms\Components\Textarea::make('description')
-                    ->label('Descripción')
+                    ->label(__('Description'))
                     ->columnSpanFull(),
             ]);
     }
@@ -44,7 +56,7 @@ class GroupResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Nombre')
+                    ->label(__('Name'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creado el')

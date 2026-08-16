@@ -43,6 +43,10 @@ class AdminPanelProvider extends PanelProvider
                     <div style="text-align: center; font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem; color: #d97706;">Acceso a Portal de Documentos</div>
                 ')
             )
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::GLOBAL_SEARCH_AFTER,
+                fn (): string => \Illuminate\Support\Facades\Blade::render('@livewire(\'language-switcher\')')
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -69,6 +73,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\SetUserLocale::class,
             ]);
     }
 }

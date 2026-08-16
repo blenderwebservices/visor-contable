@@ -16,10 +16,22 @@ class FolderResource extends Resource
 {
     protected static ?string $model = Folder::class;
 
+    public static function getModelLabel(): string
+    {
+        return __('Folder');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Folders');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Folders');
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-folder';
-    protected static ?string $navigationLabel = 'Carpetas';
-    protected static ?string $modelLabel = 'Carpeta';
-    protected static ?string $pluralModelLabel = 'Carpetas';
 
     public static function canViewAny(): bool
     {
@@ -31,7 +43,7 @@ class FolderResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
-                    ->label('Nombre')
+                    ->label(__('Name'))
                     ->required()
                     ->maxLength(255),
                 Forms\Components\Select::make('group_id')
@@ -47,7 +59,7 @@ class FolderResource extends Resource
                         }
                         return $query->forCurrentUser();
                     })
-                    ->label('Carpeta Padre')
+                    ->label(__('Parent Folder'))
                     ->searchable()
                     ->preload()
                     ->default(null),
@@ -59,14 +71,14 @@ class FolderResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Nombre')
+                    ->label(__('Name'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('group.name')
-                    ->label('Empresa')
+                    ->label(__('Company'))
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('parent.name')
-                    ->label('Carpeta Padre')
+                    ->label(__('Parent Folder'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creado el')

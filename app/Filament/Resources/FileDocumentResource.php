@@ -17,6 +17,16 @@ class FileDocumentResource extends Resource
 {
     protected static ?string $model = FileDocument::class;
 
+    public static function getModelLabel(): string
+    {
+        return __('Document');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Documents');
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
     public static function canViewAny(): bool
@@ -41,9 +51,11 @@ class FileDocumentResource extends Resource
                         }
                     }),
                 Forms\Components\TextInput::make('name')
+                    ->label(__('Name'))
                     ->required()
                     ->maxLength(255),
                 Forms\Components\Select::make('type')
+                    ->label(__('Type'))
                     ->options([
                         'pdf' => 'PDF',
                         'word' => 'Word',
@@ -63,7 +75,7 @@ class FileDocumentResource extends Resource
                             ->maxLength(255),
                         Forms\Components\Select::make('parent_id')
                             ->relationship('parent', 'name') // The relationship on Folder model is 'parent'
-                            ->label('Parent Folder')
+                            ->label(__('Parent Folder'))
                             ->searchable()
                             ->preload()
                             ->default(null),
@@ -87,13 +99,15 @@ class FileDocumentResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
+                    ->label(__('Name'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('file_path')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('type')
+                    ->label(__('Type'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('folder.name')
-                    ->label('Folder')
+                    ->label(__('Folder'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
@@ -106,9 +120,9 @@ class FileDocumentResource extends Resource
             ])
             ->groups([
                 Tables\Grouping\Group::make('folder.name')
-                    ->label('Folder'),
+                    ->label(__('Folder')),
                 Tables\Grouping\Group::make('folder_id')
-                    ->label('Grupo (Empresa)')
+                    ->label(__('Company'))
                     ->getTitleFromRecordUsing(fn ($record) => $record->folder?->groups->pluck('name')->join(', ') ?: 'Sin Grupo'),
             ])
             ->content(function (\Filament\Resources\Pages\ListRecords $livewire) {

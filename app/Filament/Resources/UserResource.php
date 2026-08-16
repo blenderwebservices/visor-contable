@@ -17,6 +17,16 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
+    public static function getModelLabel(): string
+    {
+        return __('User');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Users');
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
     public static function canViewAny(): bool
@@ -29,6 +39,7 @@ class UserResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
+                    ->label(__('Name'))
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('username')
@@ -46,6 +57,7 @@ class UserResource extends Resource
                     ->required()
                     ->maxLength(255),
                 Forms\Components\Select::make('role')
+                    ->label(__('Role'))
                     ->options([
                         'admin' => 'Admin',
                         'supervisor' => 'Supervisor',
@@ -72,6 +84,7 @@ class UserResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
+                    ->label(__('Name'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('username')
                     ->searchable(),
@@ -81,6 +94,7 @@ class UserResource extends Resource
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('role')
+                    ->label(__('Role'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
@@ -93,7 +107,7 @@ class UserResource extends Resource
             ])
             ->groups([
                 Tables\Grouping\Group::make('group_id')
-                    ->label('Grupo (Empresa)')
+                    ->label(__('Company'))
                     ->getTitleFromRecordUsing(fn ($record) => $record->groups->pluck('name')->join(', ') ?: 'Sin Grupo')
                     ->orderQueryUsing(fn (\Illuminate\Database\Eloquent\Builder $query, string $direction) => $query),
             ])

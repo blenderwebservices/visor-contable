@@ -15,10 +15,25 @@ class AnnouncementResource extends Resource
     protected static ?string $model = Announcement::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-megaphone';
-    protected static ?string $navigationGroup = 'Administración';
-    protected static ?string $navigationLabel = 'Avisos y Notificaciones';
-    protected static ?string $pluralModelLabel = 'Avisos';
-    protected static ?string $modelLabel = 'Aviso';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Admin Panel');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Announcements');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Announcement');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Announcements');
+    }
 
     public static function canViewAny(): bool
     {
@@ -29,48 +44,48 @@ class AnnouncementResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Detalles del Aviso')
+                Forms\Components\Section::make(__('Announcement Details'))
                     ->schema([
                         Forms\Components\TextInput::make('title')
-                            ->label('Título')
+                            ->label(__('Title'))
                             ->required()
                             ->maxLength(255),
                         Forms\Components\RichEditor::make('content')
-                            ->label('Contenido')
+                            ->label(__('Content'))
                             ->required()
                             ->columnSpanFull(),
                     ]),
-                Forms\Components\Section::make('Vigencia')
+                Forms\Components\Section::make(__('Validity'))
                     ->schema([
                         Forms\Components\DateTimePicker::make('valid_from')
-                            ->label('Válido Desde')
+                            ->label(__('Valid From'))
                             ->nullable(),
                         Forms\Components\DateTimePicker::make('valid_until')
-                            ->label('Válido Hasta')
+                            ->label(__('Valid Until'))
                             ->nullable(),
                     ])->columns(2),
-                Forms\Components\Section::make('Visibilidad')
+                Forms\Components\Section::make(__('Visibility'))
                     ->schema([
                         Forms\Components\Select::make('target_type')
-                            ->label('Público Objetivo')
+                            ->label(__('Target Audience'))
                             ->options([
-                                'all_users' => 'Todos los usuarios',
-                                'all_groups' => 'Todos los grupos',
-                                'specific_users' => 'Usuarios específicos',
-                                'specific_groups' => 'Grupos específicos',
+                                'all_users' => __('All Users'),
+                                'all_groups' => __('All Companies'),
+                                'specific_users' => __('Specific Users'),
+                                'specific_groups' => __('Specific Companies'),
                             ])
                             ->required()
                             ->live()
                             ->default('all_users'),
                         Forms\Components\Select::make('users')
-                            ->label('Seleccionar Usuarios')
+                            ->label(__('Select Users'))
                             ->relationship('users', 'name')
                             ->multiple()
                             ->preload()
                             ->searchable()
                             ->visible(fn (Forms\Get $get) => $get('target_type') === 'specific_users'),
                         Forms\Components\Select::make('groups')
-                            ->label('Seleccionar Grupos')
+                            ->label(__('Select Companies'))
                             ->relationship('groups', 'name')
                             ->multiple()
                             ->preload()
@@ -85,23 +100,23 @@ class AnnouncementResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('title')
-                    ->label('Título')
+                    ->label(__('Title'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('target_type')
-                    ->label('Público')
+                    ->label(__('Audience'))
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'all_users' => 'Todos los usuarios',
-                        'all_groups' => 'Todos los grupos',
-                        'specific_users' => 'Usuarios específicos',
-                        'specific_groups' => 'Grupos específicos',
+                        'all_users' => __('All Users'),
+                        'all_groups' => __('All Companies'),
+                        'specific_users' => __('Specific Users'),
+                        'specific_groups' => __('Specific Companies'),
                         default => $state,
                     }),
                 Tables\Columns\TextColumn::make('valid_from')
-                    ->label('Desde')
+                    ->label(__('From'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('valid_until')
-                    ->label('Hasta')
+                    ->label(__('Until'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')

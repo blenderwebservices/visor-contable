@@ -27,6 +27,7 @@ class User extends Authenticatable implements FilamentUser
         'role',
         'group_id',
         'has_restricted_folders',
+        'locale',
     ];
 
     /**
