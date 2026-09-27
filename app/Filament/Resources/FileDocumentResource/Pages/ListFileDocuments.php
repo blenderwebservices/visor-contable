@@ -53,7 +53,14 @@ class ListFileDocuments extends ListRecords
                     $downloadFileName .= '.' . $extension;
                 }
                 
-                if (in_array($file->type, ['word', 'excel'])) {
+                if ($file->type === 'excel') {
+                    $htmlPath = \App\Services\DocumentConverterService::convertToHtml($file->file_path);
+                    if ($htmlPath) {
+                        $type = 'html';
+                    } else {
+                        return view('filament.app.components.file-error');
+                    }
+                } elseif ($file->type === 'word') {
                     $pdfPath = \App\Services\DocumentConverterService::convertToPdf($file->file_path);
                     if ($pdfPath) {
                         $type = 'pdf';

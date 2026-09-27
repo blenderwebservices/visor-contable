@@ -12,12 +12,19 @@ Route::get('/', function () {
 Route::get('/documents/view/{fileDocument}', function (FileDocument $fileDocument) {
     $filePath = $fileDocument->file_path;
     
-    if (in_array($fileDocument->type, ['word', 'excel'])) {
+    if ($fileDocument->type === 'excel') {
+        $htmlPath = DocumentConverterService::convertToHtml($filePath);
+        if ($htmlPath) {
+            $filePath = $htmlPath;
+        } else {
+            abort(404, 'No se pudo generar la vista previa HTML.');
+        }
+    } elseif ($fileDocument->type === 'word') {
         $pdfPath = DocumentConverterService::convertToPdf($filePath);
         if ($pdfPath) {
             $filePath = $pdfPath;
         } else {
-            abort(404, 'No se pudo generar la vista previa.');
+            abort(404, 'No se pudo generar la vista previa PDF.');
         }
     }
     
@@ -30,6 +37,8 @@ Route::get('/documents/view/{fileDocument}', function (FileDocument $fileDocumen
     $mime = mime_content_type($absolutePath);
     if ($fileDocument->type === 'pdf' || str_ends_with(strtolower($filePath), '.pdf')) {
         $mime = 'application/pdf';
+    } elseif ($fileDocument->type === 'excel' || str_ends_with(strtolower($filePath), '.html')) {
+        $mime = 'text/html; charset=utf-8';
     }
     
     return response()->file($absolutePath, [

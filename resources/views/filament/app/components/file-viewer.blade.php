@@ -345,7 +345,7 @@
             <div class="flex-1 overflow-auto flex justify-center items-center p-4 custom-scrollbar relative w-full h-full">
                 <img src="{{ $url }}" alt="Imagen" class="max-w-full max-h-full object-contain mx-auto rounded shadow-md">
             </div>
-        @elseif($type === 'txt')
+        @elseif($type === 'txt' || $type === 'html')
             <div class="flex-1 overflow-hidden w-full h-full p-2">
                 <iframe src="{{ $url }}" class="w-full h-full bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 shadow-inner" frameborder="0"></iframe>
             </div>
