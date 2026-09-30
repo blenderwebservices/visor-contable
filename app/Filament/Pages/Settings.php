@@ -2,14 +2,17 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\ActivityLog;
 use App\Models\Annotation;
 use App\Models\FileDocument;
 use App\Models\FileDocumentVersion;
 use App\Models\Folder;
 use App\Models\Group;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Artisan;
@@ -18,10 +21,13 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithPagination;
 use ZipArchive;
 
 class Settings extends Page
 {
+    use WithPagination;
+
     protected static ?string $navigationIcon = 'heroicon-o-cog-8-tooth';
     protected static ?string $navigationLabel = 'Ajustes';
     protected static ?string $title = 'Ajustes del Sistema';
@@ -30,25 +36,275 @@ class Settings extends Page
 
     protected static string $view = 'filament.pages.settings';
 
+    // State for tabs & activity logs
+    public string $activeTab = 'backups'; // 'backups' | 'logs'
+    public string $logCategory = 'all'; // 'all' | 'auth' | 'documents' | 'companies' | 'users' | 'folders' | 'trash' | 'backup'
+    public string $logSearch = '';
+    public string $logAction = 'all';
+    public string $logDateRange = 'all';
+    public ?int $logUserId = null;
+    public int $perPage = 15;
+    public ?int $viewingLogId = null;
+
+    protected $queryString = [
+        'activeTab' => ['except' => 'backups'],
+        'logCategory' => ['except' => 'all'],
+        'logSearch' => ['except' => ''],
+        'logAction' => ['except' => 'all'],
+        'logDateRange' => ['except' => 'all'],
+    ];
+
+    public function mount(): void
+    {
+        if (request()->has('tab')) {
+            $this->activeTab = request()->query('tab', 'backups');
+        }
+        if (request()->has('category')) {
+            $this->logCategory = request()->query('category', 'all');
+        }
+    }
+
     public static function canAccess(): bool
     {
         return auth()->user()?->role === 'admin';
     }
 
+    public function setActiveTab(string $tab): void
+    {
+        $this->activeTab = $tab;
+        $this->resetPage();
+    }
+
+    public function setLogCategory(string $category): void
+    {
+        $this->logCategory = $category;
+        $this->resetPage();
+    }
+
+    public function updatedLogSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedLogAction(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedLogDateRange(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedLogUserId(): void
+    {
+        $this->resetPage();
+    }
+
+    public function resetLogFilters(): void
+    {
+        $this->logSearch = '';
+        $this->logAction = 'all';
+        $this->logDateRange = 'all';
+        $this->logUserId = null;
+        $this->resetPage();
+    }
+
+    public function viewLogDetails(int $id): void
+    {
+        $this->viewingLogId = $id;
+    }
+
+    public function closeLogDetails(): void
+    {
+        $this->viewingLogId = null;
+    }
+
+    public function getSelectedLogProperty(): ?ActivityLog
+    {
+        return $this->viewingLogId ? ActivityLog::find($this->viewingLogId) : null;
+    }
+
+    public function getLogsQuery()
+    {
+        return ActivityLog::query()
+            ->category($this->logCategory)
+            ->action($this->logAction)
+            ->dateRange($this->logDateRange)
+            ->forUser($this->logUserId)
+            ->search($this->logSearch)
+            ->latest('created_at');
+    }
+
+    public function getLogsProperty()
+    {
+        return $this->getLogsQuery()->paginate($this->perPage);
+    }
+
+    public function getLogStatsProperty(): array
+    {
+        return [
+            'total' => ActivityLog::count(),
+            'today_logins' => ActivityLog::where('action', 'login')->whereDate('created_at', today())->count(),
+            'documents_ops' => ActivityLog::where('category', 'documents')->count(),
+            'backups_ops' => ActivityLog::where('category', 'backup')->count(),
+            'trash_ops' => ActivityLog::where('category', 'trash')->count(),
+        ];
+    }
+
+    public function getLogCategoryCountsProperty(): array
+    {
+        return [
+            'all' => ActivityLog::count(),
+            'auth' => ActivityLog::where('category', 'auth')->count(),
+            'documents' => ActivityLog::where('category', 'documents')->count(),
+            'companies' => ActivityLog::where('category', 'companies')->count(),
+            'users' => ActivityLog::where('category', 'users')->count(),
+            'folders' => ActivityLog::where('category', 'folders')->count(),
+            'trash' => ActivityLog::where('category', 'trash')->count(),
+            'backup' => ActivityLog::where('category', 'backup')->count(),
+        ];
+    }
+
+    public function getUsersListProperty()
+    {
+        return User::withTrashed()->select('id', 'name', 'email')->orderBy('name')->get();
+    }
+
+    public function exportLogsCsv()
+    {
+        $logs = $this->getLogsQuery()->get();
+        $csvFileName = 'registros_auditoria_' . date('Y_m_d_His') . '.csv';
+
+        ActivityLogger::logBackup(
+            action: 'backup_export',
+            description: "Exportación de registros de auditoría a archivo CSV ({$logs->count()} registros)",
+            properties: ['format' => 'csv', 'count' => $logs->count()]
+        );
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => "attachment; filename=\"{$csvFileName}\"",
+        ];
+
+        return response()->streamDownload(function () use ($logs) {
+            $output = fopen('php://output', 'w');
+            // UTF-8 BOM
+            fputs($output, "\xEF\xBB\xBF");
+
+            fputcsv($output, [
+                'ID',
+                'Fecha y Hora',
+                'Usuario',
+                'Email Usuario',
+                'Módulo / Categoría',
+                'Acción',
+                'Descripción',
+                'Elemento Afectado',
+                'Dirección IP',
+                'Dispositivo / Navegador',
+            ]);
+
+            foreach ($logs as $log) {
+                fputcsv($output, [
+                    $log->id,
+                    $log->created_at->format('Y-m-d H:i:s'),
+                    $log->user_name ?? 'Sistema',
+                    $log->user_email ?? '-',
+                    $log->category_label,
+                    $log->action_label,
+                    $log->description,
+                    $log->subject_name ?? '-',
+                    $log->ip_address ?? '-',
+                    $log->browser_info,
+                ]);
+            }
+
+            fclose($output);
+        }, $csvFileName, $headers);
+    }
+
+    public function clearOldLogs(int $days = 30): void
+    {
+        $count = ActivityLog::where('created_at', '<', now()->subDays($days))->delete();
+
+        ActivityLogger::logBackup(
+            action: 'system_optimize',
+            description: "Depuración de registros de auditoría: se eliminaron {$count} registros con más de {$days} días de antigüedad.",
+            properties: ['deleted_logs' => $count, 'days_threshold' => $days]
+        );
+
+        Notification::make()
+            ->title("Se eliminaron {$count} registros de auditoría antiguos.")
+            ->success()
+            ->send();
+
+        $this->resetPage();
+    }
+
     protected function getHeaderActions(): array
     {
         return [
+            // Alternador de Vista (Respaldos <-> Logs)
+            Action::make('toggle_view')
+                ->label(fn () => $this->activeTab === 'logs' ? 'Ir a Respaldos y Mantenimiento' : 'Ver Registros de Auditoría')
+                ->icon(fn () => $this->activeTab === 'logs' ? 'heroicon-o-server-stack' : 'heroicon-o-clipboard-document-list')
+                ->color(fn () => $this->activeTab === 'logs' ? 'gray' : 'primary')
+                ->size('sm')
+                ->action(function () {
+                    $this->setActiveTab($this->activeTab === 'logs' ? 'backups' : 'logs');
+                }),
+
+            // Acciones para pestaña de Logs
+            Action::make('export_logs_header')
+                ->label('Exportar Logs (CSV)')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('success')
+                ->size('sm')
+                ->visible(fn () => $this->activeTab === 'logs')
+                ->action(fn () => $this->exportLogsCsv()),
+
+            Action::make('clear_old_logs_header')
+                ->label('Limpiar Logs Antiguos')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->size('sm')
+                ->visible(fn () => $this->activeTab === 'logs')
+                ->requiresConfirmation()
+                ->modalHeading('Depurar Registros de Auditoría')
+                ->modalDescription('Selecciona el periodo de antigüedad para eliminar logs históricos permanentemente:')
+                ->form([
+                    Select::make('days')
+                        ->label('Antigüedad mínima')
+                        ->options([
+                            '30' => 'Más de 30 días',
+                            '60' => 'Más de 60 días',
+                            '90' => 'Más de 90 días',
+                            '180' => 'Más de 6 meses',
+                        ])
+                        ->default('30')
+                        ->required(),
+                ])
+                ->action(function (array $data) {
+                    $this->clearOldLogs((int) $data['days']);
+                }),
+
             // --- 1. Mantenimiento y Auditoría ---
             Action::make('reindex')
                 ->label('Reindexar BD')
                 ->icon('heroicon-o-arrow-path')
                 ->color('warning')
                 ->size('sm')
+                ->visible(fn () => $this->activeTab === 'backups')
                 ->requiresConfirmation()
                 ->modalHeading('¿Reindexar y optimizar la Base de Datos?')
                 ->modalDescription('Esta acción limpiará la caché y optimizará las consultas y rutas del sistema.')
                 ->action(function () {
                     Artisan::call('optimize:clear');
+                    ActivityLogger::logBackup(
+                        action: 'system_optimize',
+                        description: 'Optimización y reindexación del sistema ejecutada con éxito.'
+                    );
                     Notification::make()
                         ->title('Sistema optimizado y reindexado correctamente')
                         ->success()
@@ -60,19 +316,33 @@ class Settings extends Page
                 ->icon('heroicon-o-shield-check')
                 ->color('info')
                 ->size('sm')
+                ->visible(fn () => $this->activeTab === 'backups')
                 ->modalHeading('Auditoría de Sincronización de Archivos')
                 ->modalDescription('Diagnóstico en tiempo real entre la Base de Datos y el almacenamiento físico en disco.')
                 ->modalSubmitAction(false)
                 ->modalCancelActionLabel('Cerrar')
-                ->modalContent(fn () => view('filament.pages.modals.integrity-audit', [
-                    'audit' => $this->auditIntegrity()
-                ])),
+                ->modalContent(function () {
+                    $audit = $this->auditIntegrity();
+                    ActivityLogger::logBackup(
+                        action: 'audit',
+                        description: 'Auditoría de sincronización entre BD y disco realizada.',
+                        properties: [
+                            'synced_count' => $audit['synced_count'],
+                            'missing_count' => $audit['missing_count'],
+                            'orphans_count' => $audit['orphans_count'],
+                        ]
+                    );
+                    return view('filament.pages.modals.integrity-audit', [
+                        'audit' => $audit,
+                    ]);
+                }),
 
             Action::make('clean_orphans')
                 ->label('Limpiar Huérfanos')
                 ->icon('heroicon-o-trash')
                 ->color('danger')
                 ->size('sm')
+                ->visible(fn () => $this->activeTab === 'backups')
                 ->requiresConfirmation()
                 ->modalHeading('¿Eliminar archivos huérfanos del disco?')
                 ->modalDescription('Esta acción eliminará de forma irreversible los archivos físicos en disco que no pertenecen a ningún documento en la base de datos.')
@@ -94,6 +364,12 @@ class Settings extends Page
                         }
                     }
 
+                    ActivityLogger::logBackup(
+                        action: 'clean_orphans',
+                        description: "Limpieza de {$deleted} archivo(s) huérfano(s) en disco ejecutada exitosamente.",
+                        properties: ['deleted_count' => $deleted]
+                    );
+
                     Notification::make()
                         ->title("Se eliminaron {$deleted} archivo(s) huérfano(s) exitosamente.")
                         ->success()
@@ -106,6 +382,7 @@ class Settings extends Page
                 ->icon('heroicon-o-archive-box-arrow-down')
                 ->color('success')
                 ->size('sm')
+                ->visible(fn () => $this->activeTab === 'backups')
                 ->action(function () {
                     @set_time_limit(300);
                     $structure = $this->getStructureData();
@@ -114,6 +391,12 @@ class Settings extends Page
                     $this->createDocumentsZip($tempZipPath, $structure);
 
                     $filename = 'respaldo_completo_' . date('Y_m_d_His') . '.zip';
+
+                    ActivityLogger::logBackup(
+                        action: 'backup_export',
+                        description: "Exportación de Respaldo Completo (ZIP) del sistema: {$filename}",
+                        properties: ['filename' => $filename, 'type' => 'full']
+                    );
 
                     return response()->streamDownload(function () use ($tempZipPath) {
                         readfile($tempZipPath);
@@ -126,6 +409,7 @@ class Settings extends Page
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('danger')
                 ->size('sm')
+                ->visible(fn () => $this->activeTab === 'backups')
                 ->requiresConfirmation()
                 ->modalHeading('Restauración Completa del Sistema (Todo en Uno)')
                 ->modalDescription('ADVERTENCIA CRÍTICA: Esto sobrescribirá la estructura actual de la Base de Datos e integrará los archivos físicos desde el archivo ZIP. Esta acción no se puede deshacer. ¿Deseas continuar?')
@@ -160,6 +444,17 @@ class Settings extends Page
                         // Auditar sincronización post-restauración
                         $audit = $this->auditIntegrity();
 
+                        ActivityLogger::logBackup(
+                            action: 'backup_restore',
+                            description: "Restauración Completa del sistema (ZIP) ejecutada exitosamente. Archivos físicos extraídos: {$result['extracted_count']}.",
+                            properties: [
+                                'extracted_count' => $result['extracted_count'],
+                                'synced_count' => $audit['synced_count'],
+                                'total_records' => $audit['total_db_records'],
+                                'type' => 'full',
+                            ]
+                        );
+
                         Notification::make()
                             ->title('Restauración Completa exitosa')
                             ->body("Estructura de base de datos restaurada. Archivos físicos extraídos: {$result['extracted_count']}. Documentos sincronizados: {$audit['synced_count']} / {$audit['total_db_records']}.")
@@ -179,10 +474,17 @@ class Settings extends Page
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('success')
                 ->size('sm')
+                ->visible(fn () => $this->activeTab === 'backups')
                 ->action(function () {
                     $data = $this->getStructureData();
                     $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
                     $filename = 'respaldo_estructura_' . date('Y_m_d_His') . '.json';
+
+                    ActivityLogger::logBackup(
+                        action: 'backup_export',
+                        description: "Exportación de Estructura de Base de Datos (JSON) generada: {$filename}",
+                        properties: ['filename' => $filename, 'type' => 'structure']
+                    );
 
                     return response()->streamDownload(function () use ($json) {
                         echo $json;
@@ -194,6 +496,7 @@ class Settings extends Page
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('danger')
                 ->size('sm')
+                ->visible(fn () => $this->activeTab === 'backups')
                 ->requiresConfirmation()
                 ->modalHeading('Restaurar Estructura desde JSON')
                 ->modalDescription('ADVERTENCIA: Esto borrará la estructura actual (registros en la BD) y restaurará la del archivo. Los archivos físicos no serán eliminados. ¿Estás seguro de proceder?')
@@ -221,6 +524,12 @@ class Settings extends Page
                     try {
                         $this->restoreStructureData($backupData, auth()->id());
 
+                        ActivityLogger::logBackup(
+                            action: 'backup_restore',
+                            description: 'Restauración de Estructura de Base de Datos (JSON) ejecutada exitosamente.',
+                            properties: ['type' => 'structure']
+                        );
+
                         Notification::make()
                             ->title('Estructura restaurada exitosamente')
                             ->success()
@@ -239,6 +548,7 @@ class Settings extends Page
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('success')
                 ->size('sm')
+                ->visible(fn () => $this->activeTab === 'backups')
                 ->action(function () {
                     @set_time_limit(300);
                     $tempZipPath = tempnam(sys_get_temp_dir(), 'docs_backup_') . '.zip';
@@ -246,6 +556,12 @@ class Settings extends Page
                     $info = $this->createDocumentsZip($tempZipPath);
 
                     $filename = 'respaldo_documentos_' . date('Y_m_d_His') . '.zip';
+
+                    ActivityLogger::logBackup(
+                        action: 'backup_export',
+                        description: "Exportación de Archivos Físicos de Documentos (ZIP) generada: {$filename}",
+                        properties: ['filename' => $filename, 'type' => 'documents', 'total_files' => $info['total_files']]
+                    );
 
                     return response()->streamDownload(function () use ($tempZipPath) {
                         readfile($tempZipPath);
@@ -258,6 +574,7 @@ class Settings extends Page
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('warning')
                 ->size('sm')
+                ->visible(fn () => $this->activeTab === 'backups')
                 ->requiresConfirmation()
                 ->modalHeading('Restaurar Archivos Físicos de Documentos')
                 ->modalDescription('Se descomprimirán los archivos en el almacenamiento y se sincronizarán con los registros existentes en la base de datos.')
@@ -277,6 +594,17 @@ class Settings extends Page
                     try {
                         $result = $this->extractDocumentsZip($zipPath);
                         $audit = $result['sync'];
+
+                        ActivityLogger::logBackup(
+                            action: 'backup_restore',
+                            description: "Restauración de Archivos Físicos de Documentos (ZIP) completada. Extraídos: {$result['extracted_count']}.",
+                            properties: [
+                                'extracted_count' => $result['extracted_count'],
+                                'synced_count' => $audit['synced_count'],
+                                'total_records' => $audit['total_db_records'],
+                                'type' => 'documents',
+                            ]
+                        );
 
                         $message = "Se extrajeron {$result['extracted_count']} archivo(s) físico(s). Sincronizados con la BD: {$audit['synced_count']} de {$audit['total_db_records']}.";
                         if ($audit['missing_count'] > 0) {
@@ -337,122 +665,124 @@ class Settings extends Page
         try {
             DB::beginTransaction();
 
-            // Limpiar tablas relacionales con delete() (compatible con MySQL sin error 1701 y con SQLite)
-            DB::table('folder_group')->delete();
-            DB::table('folder_user')->delete();
-            DB::table('group_user')->delete();
-            DB::table('users_folders_shared')->delete();
-            DB::table('supervisor_group_assignments')->delete();
-            Annotation::query()->forceDelete();
-            FileDocumentVersion::query()->delete();
-            FileDocument::query()->forceDelete();
-            Folder::query()->forceDelete();
+            ActivityLogger::withoutLogging(function () use ($backupData, $currentUserId) {
+                // Limpiar tablas relacionales con delete()
+                DB::table('folder_group')->delete();
+                DB::table('folder_user')->delete();
+                DB::table('group_user')->delete();
+                DB::table('users_folders_shared')->delete();
+                DB::table('supervisor_group_assignments')->delete();
+                Annotation::query()->forceDelete();
+                FileDocumentVersion::query()->delete();
+                FileDocument::query()->forceDelete();
+                Folder::query()->forceDelete();
 
-            // Eliminar físicamente los demás usuarios para evitar conflictos de claves UNIQUE (email, username)
-            if ($currentUserId) {
-                User::where('id', '!=', $currentUserId)->forceDelete();
-            } else {
-                User::query()->forceDelete();
-            }
-            Group::query()->delete();
-
-            // Insertar Grupos preservando IDs
-            foreach ($backupData['groups'] as $groupData) {
-                Group::forceCreate($groupData);
-            }
-
-            // Insertar Usuarios y relaciones
-            foreach ($backupData['users'] as $userData) {
-                $groupIds = $userData['group_ids'] ?? [];
-                $supervisedGroupIds = $userData['supervised_group_ids'] ?? [];
-                unset($userData['group_ids'], $userData['supervised_group_ids']);
-
-                if (empty($userData['password'])) {
-                    if ($currentUserId && $userData['id'] === $currentUserId) {
-                        unset($userData['password']);
-                    } else {
-                        $userData['password'] = Hash::make('password');
-                    }
-                }
-
-                if ($currentUserId && $userData['id'] === $currentUserId) {
-                    $user = User::find($currentUserId);
-                    if ($user) {
-                        $user->forceFill($userData)->save();
-                    }
+                // Eliminar físicamente los demás usuarios para evitar conflictos de claves UNIQUE
+                if ($currentUserId) {
+                    User::where('id', '!=', $currentUserId)->forceDelete();
                 } else {
-                    $user = User::withTrashed()->where('id', $userData['id'])->first();
-                    if ($user) {
-                        $user->restore();
-                        $user->forceFill($userData)->save();
+                    User::query()->forceDelete();
+                }
+                Group::query()->delete();
+
+                // Insertar Grupos preservando IDs
+                foreach ($backupData['groups'] as $groupData) {
+                    Group::forceCreate($groupData);
+                }
+
+                // Insertar Usuarios y relaciones
+                foreach ($backupData['users'] as $userData) {
+                    $groupIds = $userData['group_ids'] ?? [];
+                    $supervisedGroupIds = $userData['supervised_group_ids'] ?? [];
+                    unset($userData['group_ids'], $userData['supervised_group_ids']);
+
+                    if (empty($userData['password'])) {
+                        if ($currentUserId && $userData['id'] === $currentUserId) {
+                            unset($userData['password']);
+                        } else {
+                            $userData['password'] = Hash::make('password');
+                        }
+                    }
+
+                    if ($currentUserId && $userData['id'] === $currentUserId) {
+                        $user = User::find($currentUserId);
+                        if ($user) {
+                            $user->forceFill($userData)->save();
+                        }
                     } else {
-                        $user = User::forceCreate($userData);
+                        $user = User::withTrashed()->where('id', $userData['id'])->first();
+                        if ($user) {
+                            $user->restore();
+                            $user->forceFill($userData)->save();
+                        } else {
+                            $user = User::forceCreate($userData);
+                        }
+                    }
+
+                    if ($user) {
+                        if (!empty($groupIds)) {
+                            $user->groups()->sync($groupIds);
+                        }
+                        if (!empty($supervisedGroupIds) && method_exists($user, 'supervisedGroups')) {
+                            $user->supervisedGroups()->sync($supervisedGroupIds);
+                        }
                     }
                 }
 
-                if ($user) {
+                // Insertar Folders y relaciones preservando IDs
+                foreach ($backupData['folders'] as $folderData) {
+                    $groupIds = $folderData['group_ids'] ?? [];
+                    $userIds = $folderData['user_ids'] ?? [];
+                    unset($folderData['group_ids'], $folderData['user_ids'], $folderData['shared_users']);
+
+                    $folder = Folder::forceCreate($folderData);
                     if (!empty($groupIds)) {
-                        $user->groups()->sync($groupIds);
+                        $folder->groups()->sync($groupIds);
                     }
-                    if (!empty($supervisedGroupIds) && method_exists($user, 'supervisedGroups')) {
-                        $user->supervisedGroups()->sync($supervisedGroupIds);
-                    }
-                }
-            }
-
-            // Insertar Folders y relaciones preservando IDs
-            foreach ($backupData['folders'] as $folderData) {
-                $groupIds = $folderData['group_ids'] ?? [];
-                $userIds = $folderData['user_ids'] ?? [];
-                unset($folderData['group_ids'], $folderData['user_ids'], $folderData['shared_users']);
-
-                $folder = Folder::forceCreate($folderData);
-                if (!empty($groupIds)) {
-                    $folder->groups()->sync($groupIds);
-                }
-                if (!empty($userIds)) {
-                    $folder->users()->sync($userIds);
-                }
-            }
-
-            // Insertar FileDocuments preservando IDs y atributos JSON
-            foreach ($backupData['file_documents'] as $fileData) {
-                if (isset($fileData['attributes']) && is_string($fileData['attributes'])) {
-                    $decoded = json_decode($fileData['attributes'], true);
-                    if (json_last_error() === JSON_ERROR_NONE) {
-                        $fileData['attributes'] = $decoded;
+                    if (!empty($userIds)) {
+                        $folder->users()->sync($userIds);
                     }
                 }
-                FileDocument::forceCreate($fileData);
-            }
 
-            // Insertar versiones si existen en el respaldo
-            if (!empty($backupData['file_document_versions'])) {
-                foreach ($backupData['file_document_versions'] as $versionData) {
-                    FileDocumentVersion::forceCreate($versionData);
+                // Insertar FileDocuments preservando IDs y atributos JSON
+                foreach ($backupData['file_documents'] as $fileData) {
+                    if (isset($fileData['attributes']) && is_string($fileData['attributes'])) {
+                        $decoded = json_decode($fileData['attributes'], true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $fileData['attributes'] = $decoded;
+                        }
+                    }
+                    FileDocument::forceCreate($fileData);
                 }
-            }
 
-            // Insertar anotaciones si existen en el respaldo
-            if (!empty($backupData['annotations'])) {
-                foreach ($backupData['annotations'] as $annotationData) {
-                    Annotation::forceCreate($annotationData);
+                // Insertar versiones si existen en el respaldo
+                if (!empty($backupData['file_document_versions'])) {
+                    foreach ($backupData['file_document_versions'] as $versionData) {
+                        FileDocumentVersion::forceCreate($versionData);
+                    }
                 }
-            }
 
-            // Restaurar permisos compartidos si existen
-            if (!empty($backupData['users_folders_shared'])) {
-                foreach ($backupData['users_folders_shared'] as $shared) {
-                    DB::table('users_folders_shared')->insertOrIgnore((array) $shared);
+                // Insertar anotaciones si existen en el respaldo
+                if (!empty($backupData['annotations'])) {
+                    foreach ($backupData['annotations'] as $annotationData) {
+                        Annotation::forceCreate($annotationData);
+                    }
                 }
-            }
 
-            // Restaurar supervisores si existen
-            if (!empty($backupData['supervisor_group_assignments'])) {
-                foreach ($backupData['supervisor_group_assignments'] as $assignment) {
-                    DB::table('supervisor_group_assignments')->insertOrIgnore((array) $assignment);
+                // Restaurar permisos compartidos si existen
+                if (!empty($backupData['users_folders_shared'])) {
+                    foreach ($backupData['users_folders_shared'] as $shared) {
+                        DB::table('users_folders_shared')->insertOrIgnore((array) $shared);
+                    }
                 }
-            }
+
+                // Restaurar supervisores si existen
+                if (!empty($backupData['supervisor_group_assignments'])) {
+                    foreach ($backupData['supervisor_group_assignments'] as $assignment) {
+                        DB::table('supervisor_group_assignments')->insertOrIgnore((array) $assignment);
+                    }
+                }
+            });
 
             DB::commit();
         } catch (\Exception $e) {
