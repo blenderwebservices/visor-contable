@@ -656,10 +656,30 @@ class Settings extends Page
     }
 
     /**
+     * Limpia de raíz claves sospechosas o maliciosas en estructuras deserializadas (Pilar 5 Auditoría).
+     */
+    protected function stripPollution(mixed $data): mixed
+    {
+        if (!is_array($data)) {
+            return $data;
+        }
+
+        $clean = [];
+        foreach ($data as $key => $value) {
+            if ($key === '__proto__' || $key === 'constructor' || $key === 'prototype') {
+                continue;
+            }
+            $clean[$key] = is_array($value) ? $this->stripPollution($value) : $value;
+        }
+        return $clean;
+    }
+
+    /**
      * Restaura la estructura relacional en la Base de Datos con soporte SQLite / MySQL.
      */
     public function restoreStructureData(array $backupData, ?int $currentUserId): void
     {
+        $backupData = $this->stripPollution($backupData);
         Schema::disableForeignKeyConstraints();
 
         try {

@@ -41,6 +41,17 @@ class FileDocumentResource extends Resource
                 Forms\Components\FileUpload::make('file_path')
                     ->required()
                     ->directory('documents')
+                    ->acceptedFileTypes([
+                        'application/pdf',
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/vnd.ms-excel',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'image/jpeg',
+                        'image/png',
+                        'image/webp',
+                        'text/plain',
+                    ])
                     ->maxSize(51200) // 50MB
                     ->columnSpanFull()
                     ->live()
@@ -66,7 +77,7 @@ class FileDocumentResource extends Resource
                     ])
                     ->required(),
                 Forms\Components\Select::make('folder_id')
-                    ->relationship('folder', 'name')
+                    ->relationship('folder', 'name', modifyQueryUsing: fn (Builder $query) => $query->forCurrentUser())
                     ->searchable()
                     ->preload()
                     ->createOptionForm([
@@ -74,7 +85,7 @@ class FileDocumentResource extends Resource
                             ->required()
                             ->maxLength(255),
                         Forms\Components\Select::make('parent_id')
-                            ->relationship('parent', 'name') // The relationship on Folder model is 'parent'
+                            ->relationship('parent', 'name', modifyQueryUsing: fn (Builder $query) => $query->forCurrentUser())
                             ->label(__('Parent Folder'))
                             ->searchable()
                             ->preload()
@@ -144,6 +155,17 @@ class FileDocumentResource extends Resource
                             ->label('Nuevo Archivo')
                             ->required()
                             ->directory('documents')
+                            ->acceptedFileTypes([
+                                'application/pdf',
+                                'application/msword',
+                                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                'application/vnd.ms-excel',
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                'image/jpeg',
+                                'image/png',
+                                'image/webp',
+                                'text/plain',
+                            ])
                             ->maxSize(51200), // 50MB
                         Forms\Components\Textarea::make('change_notes')
                             ->label('Notas de cambio (Opcional)')

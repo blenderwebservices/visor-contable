@@ -77,14 +77,14 @@
              
              const setupWorkerAndLoad = () => {
                  if (typeof pdfjsLib !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-                     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                     pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.js';
                  }
                  this.loadDocument();
              };
              
              if (typeof pdfjsLib === 'undefined') {
                  const script = document.createElement('script');
-                 script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                 script.src = '/vendor/pdfjs/pdf.min.js';
                  script.onload = () => {
                      setupWorkerAndLoad();
                  };

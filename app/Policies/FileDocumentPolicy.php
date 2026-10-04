@@ -8,6 +8,15 @@ use Illuminate\Auth\Access\Response;
 
 class FileDocumentPolicy
 {
+    public function before(User $user, string $ability): ?bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return null;
+    }
+
     public function viewAny(User $user): bool
     {
         return true;
@@ -15,7 +24,11 @@ class FileDocumentPolicy
 
     public function view(User $user, FileDocument $fileDocument): bool
     {
-        return true;
+        if (!$fileDocument->folder) {
+            return false;
+        }
+
+        return $user->can('view', $fileDocument->folder);
     }
 
     public function create(User $user): bool

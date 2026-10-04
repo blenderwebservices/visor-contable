@@ -10,6 +10,8 @@ Route::get('/', function () {
 });
 
 Route::get('/documents/view/{fileDocument}', function (FileDocument $fileDocument) {
+    abort_unless(auth()->check() && auth()->user()->can('view', $fileDocument), 403, 'No autorizado para ver este documento.');
+
     $filePath = $fileDocument->file_path;
     
     if ($fileDocument->type === 'excel') {
@@ -45,4 +47,4 @@ Route::get('/documents/view/{fileDocument}', function (FileDocument $fileDocumen
         'Content-Type' => $mime,
         'Content-Disposition' => 'inline; filename="' . basename($absolutePath) . '"'
     ]);
-})->name('documents.view')->middleware(['web']);
+})->name('documents.view')->middleware(['web', 'auth']);

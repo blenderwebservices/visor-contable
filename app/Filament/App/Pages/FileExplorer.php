@@ -27,18 +27,57 @@ class FileExplorer extends Page
 
     public function mount()
     {
-        $this->currentGroupId = request()->query('group');
-        $this->currentFolderId = request()->query('folder');
+        $groupId = request()->query('group');
+        $folderId = request()->query('folder');
+
+        if ($groupId && $this->canAccessGroup((int) $groupId)) {
+            $this->currentGroupId = (int) $groupId;
+        }
+
+        if ($folderId) {
+            $folder = Folder::find($folderId);
+            if ($folder && Auth::user()->can('view', $folder)) {
+                $this->currentFolderId = (int) $folderId;
+            }
+        }
+    }
+
+    protected function canAccessGroup(int $groupId): bool
+    {
+        $user = Auth::user();
+        if (!$user) return false;
+        if ($user->role === 'admin') return true;
+        if ($user->role === 'supervisor') {
+            return $user->supervisedGroups()->where('groups.id', $groupId)->exists();
+        }
+        return $user->groups()->where('groups.id', $groupId)->exists();
     }
 
     public function openGroup($groupId)
     {
+        if (!$this->canAccessGroup((int) $groupId)) {
+            \Filament\Notifications\Notification::make()
+                ->title('Acceso denegado a esta empresa')
+                ->danger()
+                ->send();
+            return;
+        }
+
         $this->currentGroupId = $groupId;
         $this->currentFolderId = null;
     }
 
     public function openFolder($folderId)
     {
+        $folder = Folder::find($folderId);
+        if ($folder && !Auth::user()->can('view', $folder)) {
+            \Filament\Notifications\Notification::make()
+                ->title('Acceso denegado')
+                ->danger()
+                ->send();
+            return;
+        }
+
         $this->currentFolderId = $folderId;
     }
 
@@ -58,8 +97,19 @@ class FileExplorer extends Page
     
     public function goToPath($groupId = null, $folderId = null)
     {
-        $this->currentGroupId = $groupId;
-        $this->currentFolderId = $folderId;
+        if ($groupId && !$this->canAccessGroup((int) $groupId)) {
+            return;
+        }
+
+        if ($folderId) {
+            $folder = Folder::find($folderId);
+            if ($folder && !Auth::user()->can('view', $folder)) {
+                return;
+            }
+        }
+
+        $this->currentGroupId = $groupId ? (int) $groupId : null;
+        $this->currentFolderId = $folderId ? (int) $folderId : null;
     }
 
     public function toggleViewMode()
@@ -74,8 +124,12 @@ class FileExplorer extends Page
         }
 
         $user = Auth::user();
-        if ($user->role === 'admin' || $user->role === 'supervisor') {
+        if ($user->role === 'admin') {
             return Group::all();
+        }
+
+        if ($user->role === 'supervisor') {
+            return $user->supervisedGroups;
         }
 
         return $user->groups;
@@ -87,7 +141,10 @@ class FileExplorer extends Page
 
         $query = Folder::query();
         
-        if ($user->role === 'reader') {
+        if ($user->role === 'supervisor') {
+            $supervisedIds = $user->supervisedGroups()->pluck('groups.id');
+            $query->whereIn('group_id', $supervisedIds);
+        } elseif ($user->role === 'reader') {
             $query->where(function ($q) use ($user) {
                 $q->whereHas('users', function ($q2) use ($user) {
                     $q2->where('users.id', $user->id);
@@ -97,6 +154,9 @@ class FileExplorer extends Page
                     });
                 });
             });
+            if ($user->has_restricted_folders) {
+                $query->whereIn('id', $user->allowedFolders()->pluck('folders.id'));
+            }
         }
 
         if ($this->currentFolderId) {
@@ -117,6 +177,11 @@ class FileExplorer extends Page
     public function getFiles()
     {
         if (!$this->currentFolderId) {
+            return collect();
+        }
+
+        $folder = Folder::find($this->currentFolderId);
+        if (!$folder || !Auth::user()->can('view', $folder)) {
             return collect();
         }
 
@@ -166,6 +231,10 @@ class FileExplorer extends Page
             ->closeModalByClickingAway(false)
             ->modalContent(function (array $arguments) {
                 $file = FileDocument::find($arguments['file']);
+                if (!$file || !Auth::user()->can('view', $file)) {
+                    return view('filament.app.components.file-error');
+                }
+
                 $url = route('documents.view', ['fileDocument' => $file->id]);
                 $type = $file->type;
                 
@@ -212,14 +281,24 @@ class FileExplorer extends Page
                 Textarea::make('content')->label('Nueva Nota')->required(),
             ])
             ->action(function (array $data, array $arguments) {
+                $file = FileDocument::find($arguments['file']);
+                if (!$file || !Auth::user()->can('view', $file)) {
+                    return;
+                }
+
                 Annotation::create([
-                    'file_document_id' => $arguments['file'],
+                    'file_document_id' => $file->id,
                     'user_id' => Auth::id(),
                     'content' => $data['content'],
                 ]);
             })
             ->modalContent(function (array $arguments) {
-                $notes = Annotation::where('file_document_id', $arguments['file'])->with('user')->latest()->get();
+                $file = FileDocument::find($arguments['file']);
+                if (!$file || !Auth::user()->can('view', $file)) {
+                    return view('filament.app.components.file-error');
+                }
+
+                $notes = Annotation::where('file_document_id', $file->id)->with('user')->latest()->get();
                 return view('filament.app.components.file-notes', ['notes' => $notes]);
             });
     }

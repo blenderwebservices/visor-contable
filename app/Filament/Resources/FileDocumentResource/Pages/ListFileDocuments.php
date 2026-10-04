@@ -42,6 +42,10 @@ class ListFileDocuments extends ListRecords
             ->closeModalByClickingAway(false)
             ->modalContent(function (array $arguments) {
                 $file = \App\Models\FileDocument::find($arguments['file']);
+                if (!$file || !auth()->user()->can('view', $file)) {
+                    return view('filament.app.components.file-error');
+                }
+
                 $url = route('documents.view', ['fileDocument' => $file->id]);
                 $type = $file->type;
                 
@@ -103,6 +107,18 @@ class ListFileDocuments extends ListRecords
                 \Filament\Forms\Components\FileUpload::make('new_file')
                     ->label('Archivo')
                     ->directory('documents')
+                    ->acceptedFileTypes([
+                        'application/pdf',
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/vnd.ms-excel',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'image/jpeg',
+                        'image/png',
+                        'image/webp',
+                        'text/plain',
+                    ])
+                    ->maxSize(51200) // 50MB
                     ->required()
                     ->visible(fn (\Filament\Forms\Get $get) => $get('type') === 'file'),
                 
@@ -112,7 +128,10 @@ class ListFileDocuments extends ListRecords
             ])
             ->action(function (array $data, array $arguments) {
                 $folder = \App\Models\Folder::find($arguments['folder_id']);
-                if (!$folder) return;
+                if (!$folder || !auth()->user()->can('update', $folder)) {
+                    \Filament\Notifications\Notification::make()->title('No tienes permisos en esta carpeta')->danger()->send();
+                    return;
+                }
 
                 if ($data['type'] === 'folder') {
                     $folder->children()->create([
@@ -125,7 +144,7 @@ class ListFileDocuments extends ListRecords
                         'pdf' => 'pdf',
                         'doc', 'docx' => 'word',
                         'xls', 'xlsx' => 'excel',
-                        'jpg', 'jpeg', 'png', 'gif' => 'image',
+                        'jpg', 'jpeg', 'png', 'webp', 'gif' => 'image',
                         'txt' => 'txt',
                         default => 'other',
                     };
@@ -164,7 +183,10 @@ class ListFileDocuments extends ListRecords
             ])
             ->action(function (array $data, array $arguments) {
                 $folder = \App\Models\Folder::find($arguments['folder_id']);
-                if (!$folder) return;
+                if (!$folder || !auth()->user()->can('delete', $folder)) {
+                    \Filament\Notifications\Notification::make()->title('No tienes permisos para eliminar esta carpeta')->danger()->send();
+                    return;
+                }
 
                 $mode = $data['delete_mode'];
 

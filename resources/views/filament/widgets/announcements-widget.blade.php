@@ -35,7 +35,7 @@
                             </button>
                         </div>
                         <div class="mt-2 prose dark:prose-invert max-w-none text-sm text-gray-600 dark:text-gray-400">
-                            {!! $announcement->content !!}
+                            {!! $announcement->sanitized_content !!}
                         </div>
                         @if($announcement->valid_until)
                             <div class="mt-4 text-xs text-gray-500">
