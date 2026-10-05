@@ -417,6 +417,7 @@ class Settings extends Page
                     FileUpload::make('full_backup_file')
                         ->label('Paquete Completo (.zip)')
                         ->acceptedFileTypes(['application/zip', 'application/x-zip-compressed', 'multipart/x-zip', 'application/octet-stream'])
+                        ->maxSize(512000)
                         ->required()
                         ->storeFiles(false),
                 ])
@@ -504,6 +505,7 @@ class Settings extends Page
                     FileUpload::make('backup_file')
                         ->label('Archivo JSON')
                         ->acceptedFileTypes(['application/json'])
+                        ->maxSize(512000)
                         ->required()
                         ->storeFiles(false),
                 ])
@@ -582,6 +584,7 @@ class Settings extends Page
                     FileUpload::make('documents_file')
                         ->label('Archivo ZIP de Documentos')
                         ->acceptedFileTypes(['application/zip', 'application/x-zip-compressed', 'multipart/x-zip', 'application/octet-stream'])
+                        ->maxSize(512000)
                         ->required()
                         ->storeFiles(false),
                 ])
